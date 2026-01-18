@@ -68,36 +68,21 @@ struct ConfigureCommand {
             defaultOutputDir: defaultOutputDir
         )
 
-        // Test JWT generation
-        Logger.info("Testing JWT token generation...")
-        do {
-            let jwtManager = JWTManager(
-                issuerId: finalIssuerId,
-                apiKeyId: finalKeyId,
-                privateKeyPath: finalPrivateKeyPath
-            )
-            _ = try await jwtManager.getValidToken()
-            Logger.ok("JWT token generated successfully")
-        } catch {
-            Logger.error("Failed to generate JWT token: \(error.localizedDescription)")
-            throw error
+        // Validate private key can be read
+        Logger.info("Validating private key file...")
+        guard let _ = try? String(contentsOfFile: expandedKeyPath, encoding: .utf8) else {
+            Logger.error("Failed to read private key file")
+            Logger.info("Please ensure the file is a valid .p8 private key")
+            throw ConfigManagerError.privateKeyFileNotFound(path: expandedKeyPath)
         }
-
-        // Test API connection
-        Logger.info("Testing API connection...")
-        do {
-            let apiClient = try APIClient(configuration: configuration)
-            try await apiClient.testConnection()
-        } catch {
-            Logger.error("Failed to connect to API: \(error.localizedDescription)")
-            throw error
-        }
+        Logger.ok("Private key file validated")
 
         // Save configuration
         try ConfigManager.shared.saveConfiguration(configuration)
 
-        Logger.success("Configuration complete!")
-        Logger.info("You can now use the other commands to interact with App Store Analytics API")
+        Logger.success("Configuration saved successfully!")
+        Logger.info("Your API credentials will be validated when you run your first command")
+        Logger.info("Try: appstore-analytics create-report --help")
     }
 
     private static func promptForValue(
