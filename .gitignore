@@ -1,0 +1,39 @@
+# Swift Build
+.build/
+.swiftpm/
+*.xcodeproj
+*.xcworkspace
+DerivedData/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Secrets and Credentials
+*.p8
+.appstore-analytics-config.json
+~/.appstore-analytics-config.json
+AuthKey_*.p8
+
+# Output directories
+analytics-reports/
+reports/
+downloads/
+*.csv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Package Manager
+Package.resolved
+.swiftpm/xcode/package.xcworkspace/
+
+# Testing
+.coverage
+*.profraw
+*.profdata
