@@ -13,7 +13,7 @@ let package = Package(
         )
     ],
     dependencies: [
-        .package(url: "https://github.com/AvdLee/appstoreconnect-swift-sdk", from: "4.0.0")
+        .package(url: "https://github.com/AvdLee/appstoreconnect-swift-sdk", from: "4.2.0")
     ],
     targets: [
         .executableTarget(

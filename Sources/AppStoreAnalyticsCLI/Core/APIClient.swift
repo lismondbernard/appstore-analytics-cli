@@ -38,16 +38,12 @@ actor APIClient {
         self.rateLimiter = RateLimiter()
         let expandedKeyPath = UserInput.expandTildePath(configuration.privateKeyPath)
 
-        // Read private key
-        guard let privateKeyData = try? String(contentsOfFile: expandedKeyPath, encoding: .utf8) else {
-            throw JWTManagerError.invalidPrivateKey
-        }
-
-        // Create API configuration
+        // Create API configuration using file URL (handles PEM format automatically)
+        let privateKeyURL = URL(fileURLWithPath: expandedKeyPath)
         let apiConfiguration = try APIConfiguration(
             issuerID: configuration.issuerId,
             privateKeyID: configuration.apiKeyId,
-            privateKey: privateKeyData
+            privateKeyURL: privateKeyURL
         )
 
         self.provider = APIProvider(configuration: apiConfiguration)

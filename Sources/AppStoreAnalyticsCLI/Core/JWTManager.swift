@@ -46,18 +46,14 @@ actor JWTManager {
         // Expand tilde path
         let expandedPath = UserInput.expandTildePath(privateKeyPath)
 
-        // Read private key from file
-        guard let privateKeyData = try? String(contentsOfFile: expandedPath, encoding: .utf8) else {
-            throw JWTManagerError.invalidPrivateKey
-        }
-
         do {
             // Create JWT configuration to validate credentials
             // The SDK's JWT is handled internally by APIProvider
+            let privateKeyURL = URL(fileURLWithPath: expandedPath)
             _ = try APIConfiguration(
                 issuerID: issuerId,
                 privateKeyID: apiKeyId,
-                privateKey: privateKeyData
+                privateKeyURL: privateKeyURL
             )
 
             // Generate placeholder token (actual JWT handled by APIProvider)
