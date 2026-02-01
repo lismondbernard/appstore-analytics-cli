@@ -77,11 +77,26 @@ actor APIClient {
     ) async throws -> String {
         try await rateLimiter.acquirePermit()
 
+        let resolvedAppId = appId ?? configuration.defaultAppId
+
         Logger.info("Creating analytics report request for \(reportType)...")
 
-        // For now, return a placeholder ID since we need the actual API implementation
-        // This will be implemented fully when we have valid credentials to test with
-        let requestId = "report-\(UUID().uuidString.prefix(8))"
+        let createRequest = AppStoreConnect_Swift_SDK.AnalyticsReportRequestCreateRequest(
+            data: .init(
+                type: .analyticsReportRequests,
+                attributes: .init(accessType: .oneTimeSnapshot),
+                relationships: .init(
+                    app: .init(
+                        data: .init(type: .apps, id: resolvedAppId)
+                    )
+                )
+            )
+        )
+
+        let request = APIEndpoint.v1.analyticsReportRequests.post(createRequest)
+        let response = try await provider.request(request)
+
+        let requestId = response.data.id
         Logger.ok("Report request created: \(requestId)")
 
         return requestId
@@ -96,9 +111,25 @@ actor APIClient {
 
         Logger.info("Fetching analytics reports...")
 
-        // Placeholder: Will be implemented with actual API call
-        Logger.ok("Found 0 reports")
-        return []
+        let request = APIEndpoint.v1.apps.id(configuration.defaultAppId)
+            .analyticsReportRequests.get(parameters: .init(
+                fieldsAnalyticsReportRequests: [.accessType, .stoppedDueToInactivity, .reports],
+                limit: 200
+            ))
+        let response = try await provider.request(request)
+
+        let reports = response.data.map { sdkRequest -> AnalyticsReportRequest in
+            AnalyticsReportRequest(
+                id: sdkRequest.id,
+                reportType: sdkRequest.attributes?.accessType?.rawValue ?? "UNKNOWN",
+                reportSubType: nil,
+                accessType: sdkRequest.attributes?.accessType?.rawValue,
+                stoppedDueToInactivity: sdkRequest.attributes?.isStoppedDueToInactivity
+            )
+        }
+
+        Logger.ok("Found \(reports.count) reports")
+        return reports
     }
 
     /// Get the status of a specific report request
@@ -107,7 +138,26 @@ actor APIClient {
 
         Logger.info("Checking status for report \(requestId)...")
 
-        // Placeholder: Will be implemented with actual API call
+        // Fetch the report request with included reports
+        let request = APIEndpoint.v1.analyticsReportRequests.id(requestId).get(parameters: .init(
+            fieldsAnalyticsReportRequests: [.accessType, .stoppedDueToInactivity, .reports],
+            include: [.reports]
+        ))
+        let response = try await provider.request(request)
+
+        // Determine status based on API response
+        if response.data.attributes?.isStoppedDueToInactivity == true {
+            Logger.ok("Report status: FAILED")
+            return .failed
+        }
+
+        // If reports exist in the relationship, the request has completed
+        let hasReports = !(response.data.relationships?.reports?.data?.isEmpty ?? true)
+        if hasReports {
+            Logger.ok("Report status: COMPLETED")
+            return .completed
+        }
+
         Logger.ok("Report status: PROCESSING")
         return .processing
     }
@@ -118,8 +168,34 @@ actor APIClient {
 
         Logger.info("Fetching report instances for \(requestId)...")
 
-        // Placeholder: Will be implemented with actual API call
-        return []
+        // First, get the reports under this request
+        let reportsRequest = APIEndpoint.v1.analyticsReportRequests.id(requestId).reports.get(
+            parameters: .init(limit: 200)
+        )
+        let reportsResponse = try await provider.request(reportsRequest)
+
+        var allInstances: [AnalyticsReportInstance] = []
+
+        // For each report, fetch its instances
+        for report in reportsResponse.data {
+            try await rateLimiter.acquirePermit()
+
+            let instancesRequest = APIEndpoint.v1.analyticsReports.id(report.id).instances.get()
+            let instancesResponse = try await provider.request(instancesRequest)
+
+            let mapped = instancesResponse.data.map { sdkInstance -> AnalyticsReportInstance in
+                AnalyticsReportInstance(
+                    id: sdkInstance.id,
+                    granularity: sdkInstance.attributes?.granularity?.rawValue ?? "UNKNOWN",
+                    processingDate: sdkInstance.attributes?.processingDate,
+                    segmentsUrl: nil
+                )
+            }
+            allInstances.append(contentsOf: mapped)
+        }
+
+        Logger.ok("Found \(allInstances.count) instance(s)")
+        return allInstances
     }
 
     /// Get segments for a report instance
@@ -128,7 +204,19 @@ actor APIClient {
 
         Logger.info("Fetching report segments for instance \(instanceId)...")
 
-        // Placeholder: Will be implemented with actual API call
-        return []
+        let request = APIEndpoint.v1.analyticsReportInstances.id(instanceId).segments.get()
+        let response = try await provider.request(request)
+
+        let segments = response.data.map { sdkSegment -> AnalyticsReportSegment in
+            AnalyticsReportSegment(
+                id: sdkSegment.id,
+                url: sdkSegment.attributes?.url?.absoluteString,
+                checksum: sdkSegment.attributes?.checksum,
+                sizeInBytes: sdkSegment.attributes?.sizeInBytes
+            )
+        }
+
+        Logger.ok("Found \(segments.count) segment(s)")
+        return segments
     }
 }
