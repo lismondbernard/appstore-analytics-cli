@@ -44,7 +44,7 @@ struct DownloadCommand {
         let instances = try await apiClient.getReportInstances(requestId: reportRequestId)
 
         guard !instances.isEmpty else {
-            Logger.error("No report instances found")
+            Logger.error("No report instances found. This is a known Apple API limitation — ONE_TIME_SNAPSHOT reports may have no data due to privacy thresholds or data availability gaps. Try again later or create an ONGOING report instead.")
             throw NSError(domain: "DownloadCommand", code: 3, userInfo: [
                 NSLocalizedDescriptionKey: "No report instances available"
             ])

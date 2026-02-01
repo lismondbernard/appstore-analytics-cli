@@ -2,7 +2,7 @@ import Foundation
 
 enum Command {
     case configure(issuerId: String?, keyId: String?, privateKeyPath: String?, appId: String?)
-    case createReport(reportType: String, startDate: String, endDate: String, granularity: String, wait: Bool, download: Bool)
+    case createReport(reportType: String, startDate: String, endDate: String, granularity: String, wait: Bool, download: Bool, accessType: String)
     case listReports(category: String?, status: String?, format: String)
     case download(reportRequestId: String, outputDir: String?, merge: Bool, overwrite: Bool)
     case status(reportRequestId: String, watch: Bool, interval: Int)
@@ -73,6 +73,7 @@ enum Command {
         var granularity: String = "DAILY"
         var wait = false
         var download = false
+        var accessType: String = "ONE_TIME_SNAPSHOT"
 
         var i = 0
         while i < args.count {
@@ -89,6 +90,11 @@ enum Command {
             case "--granularity":
                 i += 1
                 if i < args.count { granularity = args[i] }
+            case "--access-type":
+                i += 1
+                if i < args.count { accessType = args[i].uppercased() }
+            case "--ongoing":
+                accessType = "ONGOING"
             case "--wait":
                 wait = true
             case "--download":
@@ -97,6 +103,19 @@ enum Command {
                 break
             }
             i += 1
+        }
+
+        // ONGOING reports don't require date range
+        if accessType == "ONGOING" {
+            return .createReport(
+                reportType: reportType ?? "",
+                startDate: startDate ?? "",
+                endDate: endDate ?? "",
+                granularity: granularity,
+                wait: wait,
+                download: download,
+                accessType: accessType
+            )
         }
 
         guard let reportType = reportType,
@@ -111,7 +130,8 @@ enum Command {
             endDate: endDate,
             granularity: granularity,
             wait: wait,
-            download: download
+            download: download,
+            accessType: accessType
         )
     }
 

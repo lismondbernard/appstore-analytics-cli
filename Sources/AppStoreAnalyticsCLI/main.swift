@@ -22,14 +22,15 @@ struct AppStoreAnalyticsCLI {
                     appId: appId
                 )
 
-            case .createReport(let reportType, let startDate, let endDate, let granularity, let wait, let download):
+            case .createReport(let reportType, let startDate, let endDate, let granularity, let wait, let download, let accessType):
                 try await CreateReportCommand.execute(
                     reportType: reportType,
                     startDate: startDate,
                     endDate: endDate,
                     granularity: granularity,
                     wait: wait,
-                    download: download
+                    download: download,
+                    accessType: accessType
                 )
 
             case .listReports(let category, let status, let format):

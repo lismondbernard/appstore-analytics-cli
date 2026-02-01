@@ -7,67 +7,82 @@ struct CreateReportCommand {
         endDate: String,
         granularity: String,
         wait: Bool,
-        download: Bool
+        download: Bool,
+        accessType: String = "ONE_TIME_SNAPSHOT"
     ) async throws {
         // Load configuration
         let config = try ConfigManager.shared.loadConfiguration()
 
-        // Validate report type
-        guard let _ = ReportType(rawValue: reportType) else {
-            Logger.error("Invalid report type: \(reportType)")
-            Logger.info("Available report types:")
-            for type in ReportType.allCases.prefix(10) {
-                Logger.info("  - \(type.rawValue): \(type.displayName)")
+        let isOngoing = accessType == "ONGOING"
+
+        // Validate access type
+        guard accessType == "ONE_TIME_SNAPSHOT" || accessType == "ONGOING" else {
+            Logger.error("Invalid access type: \(accessType)")
+            Logger.info("Valid options: ONE_TIME_SNAPSHOT, ONGOING")
+            throw NSError(domain: "CreateReportCommand", code: 9, userInfo: [
+                NSLocalizedDescriptionKey: "Invalid access type"
+            ])
+        }
+
+        // Only validate report type, dates, and granularity for ONE_TIME_SNAPSHOT
+        if !isOngoing {
+            // Validate report type
+            guard let _ = ReportType(rawValue: reportType) else {
+                Logger.error("Invalid report type: \(reportType)")
+                Logger.info("Available report types:")
+                for type in ReportType.allCases.prefix(10) {
+                    Logger.info("  - \(type.rawValue): \(type.displayName)")
+                }
+                Logger.info("  ... and \(ReportType.allCases.count - 10) more")
+                throw NSError(domain: "CreateReportCommand", code: 1, userInfo: [
+                    NSLocalizedDescriptionKey: "Invalid report type"
+                ])
             }
-            Logger.info("  ... and \(ReportType.allCases.count - 10) more")
-            throw NSError(domain: "CreateReportCommand", code: 1, userInfo: [
-                NSLocalizedDescriptionKey: "Invalid report type"
-            ])
-        }
 
-        // Validate dates
-        let dateFormatter = ISO8601DateFormatter()
-        dateFormatter.formatOptions = [.withFullDate, .withDashSeparatorInDate]
+            // Validate dates
+            let dateFormatter = ISO8601DateFormatter()
+            dateFormatter.formatOptions = [.withFullDate, .withDashSeparatorInDate]
 
-        guard let start = dateFormatter.date(from: startDate) else {
-            Logger.error("Invalid start date format: \(startDate)")
-            Logger.info("Expected format: YYYY-MM-DD")
-            throw NSError(domain: "CreateReportCommand", code: 2, userInfo: [
-                NSLocalizedDescriptionKey: "Invalid start date format"
-            ])
-        }
+            guard let start = dateFormatter.date(from: startDate) else {
+                Logger.error("Invalid start date format: \(startDate)")
+                Logger.info("Expected format: YYYY-MM-DD")
+                throw NSError(domain: "CreateReportCommand", code: 2, userInfo: [
+                    NSLocalizedDescriptionKey: "Invalid start date format"
+                ])
+            }
 
-        guard let end = dateFormatter.date(from: endDate) else {
-            Logger.error("Invalid end date format: \(endDate)")
-            Logger.info("Expected format: YYYY-MM-DD")
-            throw NSError(domain: "CreateReportCommand", code: 3, userInfo: [
-                NSLocalizedDescriptionKey: "Invalid end date format"
-            ])
-        }
+            guard let end = dateFormatter.date(from: endDate) else {
+                Logger.error("Invalid end date format: \(endDate)")
+                Logger.info("Expected format: YYYY-MM-DD")
+                throw NSError(domain: "CreateReportCommand", code: 3, userInfo: [
+                    NSLocalizedDescriptionKey: "Invalid end date format"
+                ])
+            }
 
-        // Validate date range (max 365 days)
-        let daysDifference = Calendar.current.dateComponents([.day], from: start, to: end).day ?? 0
-        if daysDifference > 365 {
-            Logger.error("Date range exceeds maximum of 365 days")
-            throw NSError(domain: "CreateReportCommand", code: 4, userInfo: [
-                NSLocalizedDescriptionKey: "Date range too large"
-            ])
-        }
+            // Validate date range (max 365 days)
+            let daysDifference = Calendar.current.dateComponents([.day], from: start, to: end).day ?? 0
+            if daysDifference > 365 {
+                Logger.error("Date range exceeds maximum of 365 days")
+                throw NSError(domain: "CreateReportCommand", code: 4, userInfo: [
+                    NSLocalizedDescriptionKey: "Date range too large"
+                ])
+            }
 
-        if daysDifference < 0 {
-            Logger.error("End date must be after start date")
-            throw NSError(domain: "CreateReportCommand", code: 5, userInfo: [
-                NSLocalizedDescriptionKey: "Invalid date range"
-            ])
-        }
+            if daysDifference < 0 {
+                Logger.error("End date must be after start date")
+                throw NSError(domain: "CreateReportCommand", code: 5, userInfo: [
+                    NSLocalizedDescriptionKey: "Invalid date range"
+                ])
+            }
 
-        // Validate granularity
-        guard let _ = Granularity(rawValue: granularity) else {
-            Logger.error("Invalid granularity: \(granularity)")
-            Logger.info("Valid options: DAILY, WEEKLY, MONTHLY")
-            throw NSError(domain: "CreateReportCommand", code: 6, userInfo: [
-                NSLocalizedDescriptionKey: "Invalid granularity"
-            ])
+            // Validate granularity
+            guard let _ = Granularity(rawValue: granularity) else {
+                Logger.error("Invalid granularity: \(granularity)")
+                Logger.info("Valid options: DAILY, WEEKLY, MONTHLY")
+                throw NSError(domain: "CreateReportCommand", code: 6, userInfo: [
+                    NSLocalizedDescriptionKey: "Invalid granularity"
+                ])
+            }
         }
 
         // Create API client
@@ -75,18 +90,18 @@ struct CreateReportCommand {
 
         // Create report request
         let requestId = try await apiClient.createReportRequest(
-            reportType: reportType,
-            startDate: start,
-            endDate: end,
-            granularity: granularity,
+            accessType: accessType,
             appId: config.defaultAppId
         )
 
         Logger.success("Report request created successfully")
         Logger.info("Report Request ID: \(requestId)")
-        Logger.info("Report Type: \(reportType)")
-        Logger.info("Date Range: \(startDate) to \(endDate)")
-        Logger.info("Granularity: \(granularity)")
+        Logger.info("Access Type: \(accessType)")
+        if !isOngoing {
+            Logger.info("Report Type: \(reportType)")
+            Logger.info("Date Range: \(startDate) to \(endDate)")
+            Logger.info("Granularity: \(granularity)")
+        }
 
         // Wait for completion if requested
         if wait {

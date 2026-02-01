@@ -69,22 +69,21 @@ actor APIClient {
 
     /// Create a new analytics report request
     func createReportRequest(
-        reportType: String,
-        startDate: Date,
-        endDate: Date,
-        granularity: String,
+        accessType: String = "ONE_TIME_SNAPSHOT",
         appId: String? = nil
     ) async throws -> String {
         try await rateLimiter.acquirePermit()
 
         let resolvedAppId = appId ?? configuration.defaultAppId
+        let sdkAccessType: AppStoreConnect_Swift_SDK.AnalyticsReportRequestCreateRequest.Data.Attributes.AccessType =
+            accessType == "ONGOING" ? .ongoing : .oneTimeSnapshot
 
-        Logger.info("Creating analytics report request for \(reportType)...")
+        Logger.info("Creating \(accessType) analytics report request...")
 
         let createRequest = AppStoreConnect_Swift_SDK.AnalyticsReportRequestCreateRequest(
             data: .init(
                 type: .analyticsReportRequests,
-                attributes: .init(accessType: .oneTimeSnapshot),
+                attributes: .init(accessType: sdkAccessType),
                 relationships: .init(
                     app: .init(
                         data: .init(type: .apps, id: resolvedAppId)
@@ -170,18 +169,37 @@ actor APIClient {
 
         // First, get the reports under this request
         let reportsRequest = APIEndpoint.v1.analyticsReportRequests.id(requestId).reports.get(
-            parameters: .init(limit: 200)
+            parameters: .init(
+                fieldsAnalyticsReports: [.name, .category],
+                limit: 200
+            )
         )
         let reportsResponse = try await provider.request(reportsRequest)
 
         var allInstances: [AnalyticsReportInstance] = []
 
+        Logger.info("Found \(reportsResponse.data.count) report(s) under request")
+
         // For each report, fetch its instances
-        for report in reportsResponse.data {
+        for (index, report) in reportsResponse.data.enumerated() {
             try await rateLimiter.acquirePermit()
 
-            let instancesRequest = APIEndpoint.v1.analyticsReports.id(report.id).instances.get()
+            let reportName = report.attributes?.name ?? "Unknown"
+            let reportCategory = report.attributes?.category?.rawValue ?? "Unknown"
+
+            let instancesRequest = APIEndpoint.v1.analyticsReports.id(report.id).instances.get(
+                parameters: .init(
+                    limit: 200
+                )
+            )
             let instancesResponse = try await provider.request(instancesRequest)
+
+            let count = instancesResponse.data.count
+            if count > 0 {
+                Logger.ok("  [\(index + 1)/\(reportsResponse.data.count)] \(reportName) (\(reportCategory)): \(count) instance(s)")
+            } else {
+                Logger.info("  [\(index + 1)/\(reportsResponse.data.count)] \(reportName): no instances")
+            }
 
             let mapped = instancesResponse.data.map { sdkInstance -> AnalyticsReportInstance in
                 AnalyticsReportInstance(
