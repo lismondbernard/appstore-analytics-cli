@@ -22,6 +22,11 @@ let package = Package(
                 .product(name: "AppStoreConnect-Swift-SDK", package: "appstoreconnect-swift-sdk")
             ],
             path: "Sources/AppStoreAnalyticsCLI"
+        ),
+        .testTarget(
+            name: "AppStoreAnalyticsCLITests",
+            dependencies: ["AppStoreAnalyticsCLI"],
+            path: "Tests/AppStoreAnalyticsCLITests"
         )
     ]
 )

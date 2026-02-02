@@ -231,7 +231,7 @@ actor CSVDownloader {
     // MARK: - Gzip Decompression
 
     /// Decompress data if it has a gzip header (magic bytes 0x1f 0x8b)
-    private static func decompressGzipIfNeeded(_ data: Data) -> Data {
+    static func decompressGzipIfNeeded(_ data: Data) -> Data {
         guard data.count >= 2, data[0] == 0x1f, data[1] == 0x8b else {
             return data
         }
