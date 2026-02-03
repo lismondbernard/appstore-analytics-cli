@@ -55,6 +55,11 @@ struct AppStoreAnalyticsCLI {
                     interval: interval
                 )
 
+            case .deleteReport(let reportRequestId):
+                try await DeleteReportCommand.execute(
+                    reportRequestId: reportRequestId
+                )
+
             case .help:
                 printUsage()
 
@@ -80,6 +85,7 @@ struct AppStoreAnalyticsCLI {
             list-reports           List available reports
             download               Download report CSV files
             status                 Check report status
+            delete-report          Delete an analytics report request
             help                   Show this help message
             version                Show version information
 
@@ -115,6 +121,9 @@ struct AppStoreAnalyticsCLI {
             appstore-analytics status <REPORT_REQUEST_ID> \\
                 [--watch] \\
                 [--interval <SECONDS>]
+
+        DELETE REPORT:
+            appstore-analytics delete-report <REPORT_REQUEST_ID>
 
         EXAMPLES:
             # Initial setup

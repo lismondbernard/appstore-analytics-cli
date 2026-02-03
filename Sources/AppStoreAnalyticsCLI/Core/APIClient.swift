@@ -216,6 +216,14 @@ actor APIClient {
         return allInstances
     }
 
+    /// Delete an analytics report request
+    func deleteReportRequest(requestId: String) async throws {
+        try await rateLimiter.acquirePermit()
+
+        let request = APIEndpoint.v1.analyticsReportRequests.id(requestId).delete
+        _ = try await provider.request(request)
+    }
+
     /// Get segments for a report instance
     func getReportSegments(instanceId: String) async throws -> [AnalyticsReportSegment] {
         try await rateLimiter.acquirePermit()
