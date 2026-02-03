@@ -129,9 +129,9 @@ struct CreateReportCommand {
         let pollInterval: UInt64 = 30_000_000_000  // 30 seconds
 
         while attempts < maxAttempts {
-            let status = try await apiClient.getReportStatus(requestId: requestId)
+            let result = try await apiClient.getReportStatus(requestId: requestId)
 
-            switch status {
+            switch result.status {
             case .completed:
                 Logger.success("Report completed!")
                 return
@@ -141,7 +141,7 @@ struct CreateReportCommand {
                     NSLocalizedDescriptionKey: "Report generation failed"
                 ])
             case .processing, .created:
-                Logger.info("Status: \(status.rawValue) (attempt \(attempts + 1)/\(maxAttempts))")
+                Logger.info("Status: \(result.status.rawValue) (attempt \(attempts + 1)/\(maxAttempts))")
                 try await Task.sleep(nanoseconds: pollInterval)
             }
 

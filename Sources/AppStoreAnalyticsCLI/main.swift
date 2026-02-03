@@ -125,6 +125,27 @@ struct AppStoreAnalyticsCLI {
         DELETE REPORT:
             appstore-analytics delete-report <REPORT_REQUEST_ID>
 
+        REPORT TYPES:
+            Discovery:
+              APP_STORE_PRODUCT_PAGE_VIEWS    APP_IMPRESSIONS
+              APP_STORE_SEARCH_TERMS          APP_STORE_REFERRERS
+              APP_STORE_TOTAL_PAGE_VIEWS
+
+            Commerce:
+              APP_UNITS          APP_SALES           APP_PROCEEDS
+              PAYING_USERS       APP_PURCHASES
+
+            Usage:
+              APP_SESSIONS       APP_INSTALLS        APP_USAGE
+              ACTIVE_DEVICES     ACTIVE_LAST_30_DAYS
+
+            Performance:
+              APP_CRASHES        APP_PERFORMANCE
+
+            Subscriptions:
+              SUBSCRIPTION_EVENTS       SUBSCRIBER_ACTIVITY
+              SUBSCRIPTION_RETENTION
+
         EXAMPLES:
             # Initial setup
             appstore-analytics configure

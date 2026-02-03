@@ -21,13 +21,13 @@ struct DownloadCommand {
 
         // Check report status first
         Logger.info("Checking report status...")
-        let status = try await apiClient.getReportStatus(requestId: reportRequestId)
+        let result = try await apiClient.getReportStatus(requestId: reportRequestId)
 
-        switch status {
+        switch result.status {
         case .completed:
             Logger.ok("Report is ready for download")
         case .processing, .created:
-            Logger.error("Report is not yet ready (status: \(status.rawValue))")
+            Logger.error("Report is not yet ready (status: \(result.status.rawValue))")
             Logger.info("Use 'appstore-analytics status \(reportRequestId) --watch' to monitor progress")
             throw NSError(domain: "DownloadCommand", code: 1, userInfo: [
                 NSLocalizedDescriptionKey: "Report not ready for download"

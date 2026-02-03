@@ -32,11 +32,23 @@ struct StatusCommand {
     ) async throws {
         Logger.info("Checking status for report: \(requestId)")
 
-        let status = try await apiClient.getReportStatus(requestId: requestId)
+        let result = try await apiClient.getReportStatus(requestId: requestId)
 
-        Logger.info("Report Status: \(status.rawValue)")
+        if let accessType = result.accessType {
+            Logger.info("Access Type: \(accessType)")
+        }
 
-        switch status {
+        if !result.reports.isEmpty {
+            Logger.info("Report Types:")
+            for report in result.reports {
+                let category = report.category.map { " (\($0))" } ?? ""
+                Logger.info("  - \(report.name)\(category)")
+            }
+        }
+
+        Logger.info("Report Status: \(result.status.rawValue)")
+
+        switch result.status {
         case .created:
             Logger.info("Report request has been created and is queued for processing")
         case .processing:
@@ -71,11 +83,11 @@ struct StatusCommand {
                 timeStyle: .medium
             )
 
-            let status = try await apiClient.getReportStatus(requestId: requestId)
+            let result = try await apiClient.getReportStatus(requestId: requestId)
 
-            Logger.info("[\(timestamp)] Attempt \(attempt): \(status.rawValue)")
+            Logger.info("[\(timestamp)] Attempt \(attempt): \(result.status.rawValue)")
 
-            switch status {
+            switch result.status {
             case .completed:
                 Logger.success("Report completed!")
                 Logger.info("Use 'appstore-analytics download \(requestId)' to download")

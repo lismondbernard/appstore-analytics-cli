@@ -131,8 +131,14 @@ actor APIClient {
         return reports
     }
 
+    struct ReportStatusResult {
+        let status: ReportStatus
+        let accessType: String?
+        let reports: [AnalyticsReport]
+    }
+
     /// Get the status of a specific report request
-    func getReportStatus(requestId: String) async throws -> ReportStatus {
+    func getReportStatus(requestId: String) async throws -> ReportStatusResult {
         try await rateLimiter.acquirePermit()
 
         Logger.info("Checking status for report \(requestId)...")
@@ -140,25 +146,37 @@ actor APIClient {
         // Fetch the report request with included reports
         let request = APIEndpoint.v1.analyticsReportRequests.id(requestId).get(parameters: .init(
             fieldsAnalyticsReportRequests: [.accessType, .stoppedDueToInactivity, .reports],
+            fieldsAnalyticsReports: [.name, .category],
             include: [.reports]
         ))
         let response = try await provider.request(request)
 
+        let accessType = response.data.attributes?.accessType?.rawValue
+
+        // Extract included reports
+        let reports: [AnalyticsReport] = (response.included ?? []).map { included in
+            AnalyticsReport(
+                id: included.id,
+                name: included.attributes?.name ?? "Unknown",
+                category: included.attributes?.category?.rawValue,
+                instancesUrl: nil
+            )
+        }
+
         // Determine status based on API response
         if response.data.attributes?.isStoppedDueToInactivity == true {
             Logger.ok("Report status: FAILED")
-            return .failed
+            return ReportStatusResult(status: .failed, accessType: accessType, reports: reports)
         }
 
-        // If reports exist in the relationship, the request has completed
         let hasReports = !(response.data.relationships?.reports?.data?.isEmpty ?? true)
         if hasReports {
             Logger.ok("Report status: COMPLETED")
-            return .completed
+            return ReportStatusResult(status: .completed, accessType: accessType, reports: reports)
         }
 
         Logger.ok("Report status: PROCESSING")
-        return .processing
+        return ReportStatusResult(status: .processing, accessType: accessType, reports: reports)
     }
 
     /// Get report instances for a completed report
