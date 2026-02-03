@@ -7,7 +7,8 @@ A command-line interface for the App Store Connect Analytics API, designed to ge
 - **Easy Authentication**: Configure once with your App Store Connect API credentials
 - **Report Generation**: Create analytics reports with various types and date ranges
 - **Automated Downloads**: Download CSV reports automatically
-- **Status Monitoring**: Track report processing status
+- **Status Monitoring**: Track report processing status with report type details
+- **Report Management**: Delete report requests and list available report types
 - **Secure**: Credentials stored with proper file permissions (600)
 
 ## Requirements
@@ -174,17 +175,58 @@ appstore-analytics status <REPORT_REQUEST_ID> \
 - `--watch`: Continuously monitor until completion
 - `--interval`: Polling interval in seconds (default: 30)
 
+### delete-report
+
+Delete an analytics report request.
+
+```bash
+appstore-analytics delete-report <REPORT_REQUEST_ID>
+```
+
+### list-report-types
+
+List all available report types, optionally filtered by category.
+
+```bash
+appstore-analytics list-report-types [--category <CATEGORY>]
+```
+
+**Options:**
+- `--category`: Filter by category (discovery, commerce, usage, performance, subscriptions)
+
 ## Report Types
 
-Common report types include:
+### Discovery
+- `APP_STORE_PRODUCT_PAGE_VIEWS` - App Store Product Page Views
+- `APP_STORE_SEARCH_TERMS` - App Store Search Terms
+- `APP_IMPRESSIONS` - App Impressions
+- `APP_STORE_REFERRERS` - App Store Referrers
+- `APP_STORE_TOTAL_PAGE_VIEWS` - App Store Total Page Views
 
-- `APP_STORE_PRODUCT_PAGE_VIEWS` - Product page impressions and views
-- `APP_UNITS` - App downloads and redownloads
-- `APP_SALES` - Sales and proceeds data
-- `APP_SESSIONS` - App usage sessions
-- `APP_CRASHES` - Crash analytics
+### Commerce
+- `APP_UNITS` - App Units
+- `APP_SALES` - App Sales
+- `APP_PROCEEDS` - App Proceeds
+- `PAYING_USERS` - Paying Users
+- `APP_PURCHASES` - App Purchases
 
-See [Apple's documentation](https://developer.apple.com/documentation/appstoreconnectapi/analytics) for a complete list.
+### Usage
+- `APP_SESSIONS` - App Sessions
+- `APP_INSTALLS` - App Installs
+- `APP_USAGE` - App Usage
+- `ACTIVE_DEVICES` - Active Devices
+- `ACTIVE_LAST_30_DAYS` - Active Last 30 Days
+
+### Performance
+- `APP_CRASHES` - App Crashes
+- `APP_PERFORMANCE` - App Performance
+
+### Subscriptions
+- `SUBSCRIPTION_EVENTS` - Subscription Events
+- `SUBSCRIBER_ACTIVITY` - Subscriber Activity
+- `SUBSCRIPTION_RETENTION` - Subscription Retention
+
+You can also run `appstore-analytics list-report-types` to see this list. See [Apple's documentation](https://developer.apple.com/documentation/appstoreconnectapi/analytics) for more details.
 
 ## Examples
 
@@ -207,6 +249,13 @@ appstore-analytics list-reports --format table
 
 # 4. Download a specific report
 appstore-analytics download abc-123-def --output-dir ./my-reports
+
+# 5. Delete a report
+appstore-analytics delete-report abc-123-def
+
+# 6. List available report types
+appstore-analytics list-report-types
+appstore-analytics list-report-types --category commerce
 ```
 
 ## Security
