@@ -5,7 +5,8 @@ struct DownloadCommand {
         reportRequestId: String,
         outputDir: String?,
         merge: Bool,
-        overwrite: Bool
+        overwrite: Bool,
+        reportType: String? = nil
     ) async throws {
         // Load configuration
         let config = try ConfigManager.shared.loadConfiguration()
@@ -15,6 +16,9 @@ struct DownloadCommand {
         let expandedOutputDir = UserInput.expandTildePath(baseOutputDir)
 
         Logger.info("Downloading report: \(reportRequestId)")
+        if let reportType = reportType {
+            Logger.info("Filtering by report type: \(reportType)")
+        }
 
         // Create API client
         let apiClient = try APIClient(configuration: config)
@@ -41,7 +45,30 @@ struct DownloadCommand {
 
         // Fetch report instances
         Logger.info("Fetching report instances...")
-        let instances = try await apiClient.getReportInstances(requestId: reportRequestId)
+        var instances = try await apiClient.getReportInstances(requestId: reportRequestId)
+
+        // Filter by report type if specified
+        if let reportType = reportType,
+           let knownType = ReportType(rawValue: reportType) {
+            let targetName = knownType.displayName.lowercased()
+            let filteredInstances = instances.filter { instance in
+                guard let name = instance.reportName?.lowercased() else { return false }
+                return name.contains(targetName) || targetName.contains(name)
+            }
+            if filteredInstances.isEmpty {
+                Logger.error("No instances found matching report type '\(reportType)'")
+                Logger.info("Available reports with instances:")
+                let reportsWithInstances = Set(instances.compactMap { $0.reportName })
+                for name in reportsWithInstances.sorted() {
+                    Logger.info("  - \(name)")
+                }
+                throw NSError(domain: "DownloadCommand", code: 4, userInfo: [
+                    NSLocalizedDescriptionKey: "No matching report instances"
+                ])
+            }
+            instances = filteredInstances
+            Logger.ok("Filtered to \(instances.count) instance(s) matching '\(knownType.displayName)'")
+        }
 
         guard !instances.isEmpty else {
             Logger.error("No report instances found. This is a known Apple API limitation — ONE_TIME_SNAPSHOT reports may have no data due to privacy thresholds or data availability gaps. Try again later or create an ONGOING report instead.")

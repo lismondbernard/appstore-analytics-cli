@@ -40,12 +40,13 @@ struct AppStoreAnalyticsCLI {
                     format: format
                 )
 
-            case .download(let reportRequestId, let outputDir, let merge, let overwrite):
+            case .download(let reportRequestId, let outputDir, let merge, let overwrite, let reportType):
                 try await DownloadCommand.execute(
                     reportRequestId: reportRequestId,
                     outputDir: outputDir,
                     merge: merge,
-                    overwrite: overwrite
+                    overwrite: overwrite,
+                    reportType: reportType
                 )
 
             case .status(let reportRequestId, let watch, let interval, let reportType):
@@ -118,6 +119,7 @@ struct AppStoreAnalyticsCLI {
 
         DOWNLOAD:
             appstore-analytics download <REPORT_REQUEST_ID> \\
+                [--report-type <REPORT_TYPE>] \\
                 [--output-dir <DIR>] \\
                 [--merge] \\
                 [--overwrite]

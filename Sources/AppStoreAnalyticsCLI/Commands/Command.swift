@@ -4,7 +4,7 @@ enum Command {
     case configure(issuerId: String?, keyId: String?, privateKeyPath: String?, appId: String?)
     case createReport(reportType: String, startDate: String, endDate: String, granularity: String, wait: Bool, download: Bool, accessType: String)
     case listReports(category: String?, status: String?, format: String)
-    case download(reportRequestId: String, outputDir: String?, merge: Bool, overwrite: Bool)
+    case download(reportRequestId: String, outputDir: String?, merge: Bool, overwrite: Bool, reportType: String?)
     case status(reportRequestId: String, watch: Bool, interval: Int, reportType: String?)
     case deleteReport(reportRequestId: String)
     case listReportTypes(category: String?)
@@ -175,6 +175,7 @@ enum Command {
         var outputDir: String?
         var merge = false
         var overwrite = false
+        var reportType: String?
 
         var i = 1
         while i < args.count {
@@ -186,6 +187,9 @@ enum Command {
                 merge = true
             case "--overwrite":
                 overwrite = true
+            case "--report-type":
+                i += 1
+                if i < args.count { reportType = args[i] }
             default:
                 break
             }
@@ -196,7 +200,8 @@ enum Command {
             reportRequestId: reportRequestId,
             outputDir: outputDir,
             merge: merge,
-            overwrite: overwrite
+            overwrite: overwrite,
+            reportType: reportType
         )
     }
 

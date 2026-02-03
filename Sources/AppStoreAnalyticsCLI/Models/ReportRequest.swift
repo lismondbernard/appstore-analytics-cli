@@ -67,12 +67,16 @@ struct AnalyticsReportInstance: Codable {
     let granularity: String
     let processingDate: String?
     let segmentsUrl: String?
+    let reportName: String?
+    let reportCategory: String?
 
     enum CodingKeys: String, CodingKey {
         case id
         case granularity
         case processingDate = "processing_date"
         case segmentsUrl = "segments_url"
+        case reportName = "report_name"
+        case reportCategory = "report_category"
     }
 }
 

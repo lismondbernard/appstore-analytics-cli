@@ -235,7 +235,9 @@ actor APIClient {
                     id: sdkInstance.id,
                     granularity: sdkInstance.attributes?.granularity?.rawValue ?? "UNKNOWN",
                     processingDate: sdkInstance.attributes?.processingDate,
-                    segmentsUrl: nil
+                    segmentsUrl: nil,
+                    reportName: reportName,
+                    reportCategory: reportCategory
                 )
             }
             allInstances.append(contentsOf: mapped)
