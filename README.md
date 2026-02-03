@@ -73,6 +73,12 @@ Monitor report processing:
 appstore-analytics status <REPORT_REQUEST_ID>
 ```
 
+Filter to show only a specific report type:
+
+```bash
+appstore-analytics status <REPORT_REQUEST_ID> --report-type APP_INSTALLS
+```
+
 Or watch continuously:
 
 ```bash
@@ -85,6 +91,12 @@ Download the CSV files once complete:
 
 ```bash
 appstore-analytics download <REPORT_REQUEST_ID>
+```
+
+Download only a specific report type:
+
+```bash
+appstore-analytics download <REPORT_REQUEST_ID> --report-type APP_INSTALLS
 ```
 
 ## Commands
@@ -151,12 +163,14 @@ Download report CSV files.
 
 ```bash
 appstore-analytics download <REPORT_REQUEST_ID> \
+  [--report-type <REPORT_TYPE>] \
   [--output-dir <DIR>] \
   [--merge] \
   [--overwrite]
 ```
 
 **Options:**
+- `--report-type`: Filter to download only a specific report type (e.g., APP_INSTALLS)
 - `--output-dir`: Directory for downloaded files (default: ./analytics-reports)
 - `--merge`: Merge all segments into a single CSV file
 - `--overwrite`: Overwrite existing files
@@ -167,11 +181,13 @@ Check the status of a report request.
 
 ```bash
 appstore-analytics status <REPORT_REQUEST_ID> \
+  [--report-type <REPORT_TYPE>] \
   [--watch] \
   [--interval <SECONDS>]
 ```
 
 **Options:**
+- `--report-type`: Filter to show only a specific report type (e.g., APP_INSTALLS)
 - `--watch`: Continuously monitor until completion
 - `--interval`: Polling interval in seconds (default: 30)
 
