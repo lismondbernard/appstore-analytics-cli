@@ -5,7 +5,7 @@ enum Command {
     case createReport(reportType: String, startDate: String, endDate: String, granularity: String, wait: Bool, download: Bool, accessType: String)
     case listReports(category: String?, status: String?, format: String)
     case download(reportRequestId: String, outputDir: String?, merge: Bool, overwrite: Bool)
-    case status(reportRequestId: String, watch: Bool, interval: Int)
+    case status(reportRequestId: String, watch: Bool, interval: Int, reportType: String?)
     case deleteReport(reportRequestId: String)
     case listReportTypes(category: String?)
     case help
@@ -207,6 +207,7 @@ enum Command {
 
         var watch = false
         var interval = 30
+        var reportType: String?
 
         var i = 1
         while i < args.count {
@@ -218,13 +219,16 @@ enum Command {
                 if i < args.count, let value = Int(args[i]) {
                     interval = value
                 }
+            case "--report-type":
+                i += 1
+                if i < args.count { reportType = args[i] }
             default:
                 break
             }
             i += 1
         }
 
-        return .status(reportRequestId: reportRequestId, watch: watch, interval: interval)
+        return .status(reportRequestId: reportRequestId, watch: watch, interval: interval, reportType: reportType)
     }
 
     private static func parseDeleteReportCommand(args: [String]) -> Command? {

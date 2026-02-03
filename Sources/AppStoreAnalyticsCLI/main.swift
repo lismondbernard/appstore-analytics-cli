@@ -48,11 +48,12 @@ struct AppStoreAnalyticsCLI {
                     overwrite: overwrite
                 )
 
-            case .status(let reportRequestId, let watch, let interval):
+            case .status(let reportRequestId, let watch, let interval, let reportType):
                 try await StatusCommand.execute(
                     reportRequestId: reportRequestId,
                     watch: watch,
-                    interval: interval
+                    interval: interval,
+                    reportType: reportType
                 )
 
             case .deleteReport(let reportRequestId):
@@ -123,6 +124,7 @@ struct AppStoreAnalyticsCLI {
 
         STATUS:
             appstore-analytics status <REPORT_REQUEST_ID> \\
+                [--report-type <REPORT_TYPE>] \\
                 [--watch] \\
                 [--interval <SECONDS>]
 

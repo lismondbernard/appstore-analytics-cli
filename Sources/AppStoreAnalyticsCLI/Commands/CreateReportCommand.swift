@@ -98,9 +98,10 @@ struct CreateReportCommand {
         Logger.info("Report Request ID: \(requestId)")
         Logger.info("Access Type: \(accessType)")
         if !isOngoing {
-            Logger.info("Report Type: \(reportType)")
+            Logger.info("Requested Report Type: \(reportType)")
             Logger.info("Date Range: \(startDate) to \(endDate)")
             Logger.info("Granularity: \(granularity)")
+            Logger.info("Note: Apple generates all report types per request. Use --report-type with 'status' or 'download' to filter to \(reportType).")
         }
 
         // Wait for completion if requested

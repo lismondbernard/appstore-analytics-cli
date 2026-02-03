@@ -4,7 +4,8 @@ struct StatusCommand {
     static func execute(
         reportRequestId: String,
         watch: Bool,
-        interval: Int
+        interval: Int,
+        reportType: String? = nil
     ) async throws {
         // Load configuration
         let config = try ConfigManager.shared.loadConfiguration()
@@ -21,14 +22,16 @@ struct StatusCommand {
         } else {
             try await checkOnce(
                 apiClient: apiClient,
-                requestId: reportRequestId
+                requestId: reportRequestId,
+                reportType: reportType
             )
         }
     }
 
     private static func checkOnce(
         apiClient: APIClient,
-        requestId: String
+        requestId: String,
+        reportType: String? = nil
     ) async throws {
         Logger.info("Checking status for report: \(requestId)")
 
@@ -39,10 +42,31 @@ struct StatusCommand {
         }
 
         if !result.reports.isEmpty {
-            Logger.info("Report Types:")
-            for report in result.reports {
-                let category = report.category.map { " (\($0))" } ?? ""
-                Logger.info("  - \(report.name)\(category)")
+            let filteredReports: [AnalyticsReport]
+            if let reportType = reportType,
+               let knownType = ReportType(rawValue: reportType) {
+                let targetName = knownType.displayName.lowercased()
+                filteredReports = result.reports.filter {
+                    $0.name.lowercased() == targetName
+                }
+                if filteredReports.isEmpty {
+                    Logger.info("No reports matching type '\(reportType)' found in this request")
+                    Logger.info("Total report types in request: \(result.reports.count)")
+                } else {
+                    Logger.info("Matching Reports (filtered by \(reportType)):")
+                    for report in filteredReports {
+                        let category = report.category.map { " (\($0))" } ?? ""
+                        Logger.info("  - \(report.name)\(category)")
+                    }
+                    Logger.info("(\(result.reports.count) total report types in request, showing \(filteredReports.count) matching)")
+                }
+            } else {
+                Logger.info("Report Types (\(result.reports.count) total):")
+                for report in result.reports {
+                    let category = report.category.map { " (\($0))" } ?? ""
+                    Logger.info("  - \(report.name)\(category)")
+                }
+                Logger.info("Tip: Use --report-type <TYPE> to filter this list")
             }
         }
 
