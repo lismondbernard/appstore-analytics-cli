@@ -60,6 +60,9 @@ struct AppStoreAnalyticsCLI {
                     reportRequestId: reportRequestId
                 )
 
+            case .listReportTypes(let category):
+                ListReportTypesCommand.execute(category: category)
+
             case .help:
                 printUsage()
 
@@ -86,6 +89,7 @@ struct AppStoreAnalyticsCLI {
             download               Download report CSV files
             status                 Check report status
             delete-report          Delete an analytics report request
+            list-report-types      List available report types
             help                   Show this help message
             version                Show version information
 
@@ -124,6 +128,10 @@ struct AppStoreAnalyticsCLI {
 
         DELETE REPORT:
             appstore-analytics delete-report <REPORT_REQUEST_ID>
+
+        LIST REPORT TYPES:
+            appstore-analytics list-report-types [--category <CATEGORY>]
+            Categories: discovery, commerce, usage, performance, subscriptions
 
         REPORT TYPES:
             Discovery:

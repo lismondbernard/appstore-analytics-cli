@@ -7,6 +7,7 @@ enum Command {
     case download(reportRequestId: String, outputDir: String?, merge: Bool, overwrite: Bool)
     case status(reportRequestId: String, watch: Bool, interval: Int)
     case deleteReport(reportRequestId: String)
+    case listReportTypes(category: String?)
     case help
     case version
 
@@ -30,6 +31,8 @@ enum Command {
             return parseStatusCommand(args: args)
         case "delete-report":
             return parseDeleteReportCommand(args: args)
+        case "list-report-types":
+            return parseListReportTypesCommand(args: args)
         case "help", "--help", "-h":
             return .help
         case "version", "--version", "-v":
@@ -229,5 +232,23 @@ enum Command {
             return nil
         }
         return .deleteReport(reportRequestId: reportRequestId)
+    }
+
+    private static func parseListReportTypesCommand(args: [String]) -> Command {
+        var category: String?
+
+        var i = 0
+        while i < args.count {
+            switch args[i] {
+            case "--category":
+                i += 1
+                if i < args.count { category = args[i] }
+            default:
+                break
+            }
+            i += 1
+        }
+
+        return .listReportTypes(category: category)
     }
 }
