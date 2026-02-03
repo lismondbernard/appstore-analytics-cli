@@ -143,40 +143,51 @@ actor APIClient {
 
         Logger.info("Checking status for report \(requestId)...")
 
-        // Fetch the report request with included reports
+        // Fetch the report request basic info
         let request = APIEndpoint.v1.analyticsReportRequests.id(requestId).get(parameters: .init(
-            fieldsAnalyticsReportRequests: [.accessType, .stoppedDueToInactivity, .reports],
-            fieldsAnalyticsReports: [.name, .category],
-            include: [.reports]
+            fieldsAnalyticsReportRequests: [.accessType, .stoppedDueToInactivity, .reports]
         ))
         let response = try await provider.request(request)
 
         let accessType = response.data.attributes?.accessType?.rawValue
 
-        // Extract included reports
-        let reports: [AnalyticsReport] = (response.included ?? []).map { included in
-            AnalyticsReport(
-                id: included.id,
-                name: included.attributes?.name ?? "Unknown",
-                category: included.attributes?.category?.rawValue,
-                instancesUrl: nil
-            )
-        }
-
         // Determine status based on API response
         if response.data.attributes?.isStoppedDueToInactivity == true {
             Logger.ok("Report status: FAILED")
-            return ReportStatusResult(status: .failed, accessType: accessType, reports: reports)
+            return ReportStatusResult(status: .failed, accessType: accessType, reports: [])
         }
 
-        let hasReports = !(response.data.relationships?.reports?.data?.isEmpty ?? true)
-        if hasReports {
+        // Fetch all reports to determine status and get full list
+        let reports = try await getReportsForRequest(requestId: requestId)
+        if !reports.isEmpty {
             Logger.ok("Report status: COMPLETED")
             return ReportStatusResult(status: .completed, accessType: accessType, reports: reports)
         }
 
         Logger.ok("Report status: PROCESSING")
-        return ReportStatusResult(status: .processing, accessType: accessType, reports: reports)
+        return ReportStatusResult(status: .processing, accessType: accessType, reports: [])
+    }
+
+    /// Get all reports for a report request (with pagination support)
+    func getReportsForRequest(requestId: String) async throws -> [AnalyticsReport] {
+        try await rateLimiter.acquirePermit()
+
+        let request = APIEndpoint.v1.analyticsReportRequests.id(requestId).reports.get(
+            parameters: .init(
+                fieldsAnalyticsReports: [.name, .category],
+                limit: 200
+            )
+        )
+        let response = try await provider.request(request)
+
+        return response.data.map { report in
+            AnalyticsReport(
+                id: report.id,
+                name: report.attributes?.name ?? "Unknown",
+                category: report.attributes?.category?.rawValue,
+                instancesUrl: nil
+            )
+        }
     }
 
     /// Get report instances for a completed report

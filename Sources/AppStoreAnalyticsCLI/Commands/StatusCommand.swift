@@ -46,8 +46,9 @@ struct StatusCommand {
             if let reportType = reportType,
                let knownType = ReportType(rawValue: reportType) {
                 let targetName = knownType.displayName.lowercased()
+                // Use contains for partial matching (e.g., "App Installs" matches "Platform App Installs")
                 filteredReports = result.reports.filter {
-                    $0.name.lowercased() == targetName
+                    $0.name.lowercased().contains(targetName) || targetName.contains($0.name.lowercased())
                 }
                 if filteredReports.isEmpty {
                     Logger.info("No reports matching type '\(reportType)' found in this request")
