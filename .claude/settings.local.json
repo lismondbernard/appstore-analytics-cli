@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(swift:*)",
+      "Bash(openssl ec:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "Bash(.build/debug/appstore-analytics download:*)",
+      "WebFetch(domain:www.polpiella.dev)",
+      "WebSearch",
+      "Bash(xxd:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nAdd delete-report command for removing analytics report requests\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push)",
+      "Bash(git commit:*)"
+    ]
+  }
+}
