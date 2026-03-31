@@ -82,15 +82,28 @@ struct DownloadCommand {
         // Process each instance
         var allDownloadedPaths: [String] = []
 
+        var skippedCount = 0
+
         for (index, instance) in instances.enumerated() {
             Logger.info("\nProcessing instance \(index + 1)/\(instances.count): \(instance.id)")
 
             // Create instance-specific directory
             let instanceDir = "\(expandedOutputDir)/\(reportRequestId)/instance-\(instance.id)"
 
-            // Fetch segments for this instance
+            // Fetch segments for this instance (skip expired/deleted instances)
             Logger.info("Fetching segments...")
-            let segments = try await apiClient.getReportSegments(instanceId: instance.id)
+            let segments: [AnalyticsReportSegment]
+            do {
+                segments = try await apiClient.getReportSegments(instanceId: instance.id)
+            } catch {
+                let errorMessage = "\(error)"
+                if errorMessage.contains("404") || errorMessage.contains("NOT_FOUND") {
+                    Logger.error("Instance \(instance.id) no longer available (expired), skipping...")
+                    skippedCount += 1
+                    continue
+                }
+                throw error
+            }
 
             guard !segments.isEmpty else {
                 Logger.error("No segments found for instance \(instance.id)")
@@ -118,6 +131,10 @@ struct DownloadCommand {
                 )
                 Logger.ok("Merged file: \(mergedPath)")
             }
+        }
+
+        if skippedCount > 0 {
+            Logger.info("\nNote: \(skippedCount) expired instance(s) were skipped")
         }
 
         // Summary
