@@ -15,7 +15,18 @@
       "Bash(git push)",
       "Bash(git commit:*)",
       "Bash(python3:*)",
-      "Bash(xcrun swift:*)"
+      "Bash(xcrun swift:*)",
+      "Bash(ls ~/Documents/analytics*)",
+      "Bash(for f:*)",
+      "Bash(do echo:*)",
+      "Read(//Users/lismondbernard/Projects/SilentSpice/cli/appstore-analytics-cli/**)",
+      "Bash(done)",
+      "Bash(.build/release/appstore-analytics help:*)",
+      "Bash(.build/release/appstore-analytics list-reports:*)",
+      "Bash(.build/release/appstore-analytics status:*)",
+      "Bash(.build/release/appstore-analytics download:*)",
+      "Read(//Applications/**)",
+      "Read(//Library/Developer/**)"
     ]
   }
 }
