@@ -22,7 +22,7 @@ struct AppStoreAnalyticsCLI {
                     appId: appId
                 )
 
-            case .createReport(let reportType, let startDate, let endDate, let granularity, let wait, let download, let accessType):
+            case .createReport(let reportType, let startDate, let endDate, let granularity, let wait, let download, let accessType, let appId):
                 try await CreateReportCommand.execute(
                     reportType: reportType,
                     startDate: startDate,
@@ -30,7 +30,8 @@ struct AppStoreAnalyticsCLI {
                     granularity: granularity,
                     wait: wait,
                     download: download,
-                    accessType: accessType
+                    accessType: accessType,
+                    appId: appId
                 )
 
             case .listReports(let category, let status, let format):
@@ -108,6 +109,8 @@ struct AppStoreAnalyticsCLI {
                 --start-date <YYYY-MM-DD> \\
                 --end-date <YYYY-MM-DD> \\
                 [--granularity DAILY|WEEKLY|MONTHLY] \\
+                [--access-type ONE_TIME_SNAPSHOT|ONGOING] \\
+                [--app-id <APP_ID>] \\
                 [--wait] \\
                 [--download]
 

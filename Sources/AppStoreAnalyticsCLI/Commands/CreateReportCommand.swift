@@ -8,7 +8,8 @@ struct CreateReportCommand {
         granularity: String,
         wait: Bool,
         download: Bool,
-        accessType: String = "ONE_TIME_SNAPSHOT"
+        accessType: String = "ONE_TIME_SNAPSHOT",
+        appId: String? = nil
     ) async throws {
         // Load configuration
         let config = try ConfigManager.shared.loadConfiguration()
@@ -88,14 +89,16 @@ struct CreateReportCommand {
         // Create API client
         let apiClient = try APIClient(configuration: config)
 
-        // Create report request
+        // Create report request — appId override takes precedence over config default
+        let resolvedAppId = appId ?? config.defaultAppId
         let requestId = try await apiClient.createReportRequest(
             accessType: accessType,
-            appId: config.defaultAppId
+            appId: resolvedAppId
         )
 
         Logger.success("Report request created successfully")
         Logger.info("Report Request ID: \(requestId)")
+        Logger.info("App ID: \(resolvedAppId)\(appId != nil ? " (override)" : " (from config)")")
         Logger.info("Access Type: \(accessType)")
         if !isOngoing {
             Logger.info("Requested Report Type: \(reportType)")

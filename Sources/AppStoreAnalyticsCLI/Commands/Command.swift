@@ -2,7 +2,7 @@ import Foundation
 
 enum Command {
     case configure(issuerId: String?, keyId: String?, privateKeyPath: String?, appId: String?)
-    case createReport(reportType: String, startDate: String, endDate: String, granularity: String, wait: Bool, download: Bool, accessType: String)
+    case createReport(reportType: String, startDate: String, endDate: String, granularity: String, wait: Bool, download: Bool, accessType: String, appId: String?)
     case listReports(category: String?, status: String?, format: String)
     case download(reportRequestId: String, outputDir: String?, merge: Bool, overwrite: Bool, reportType: String?)
     case status(reportRequestId: String, watch: Bool, interval: Int, reportType: String?)
@@ -80,6 +80,7 @@ enum Command {
         var wait = false
         var download = false
         var accessType: String = "ONE_TIME_SNAPSHOT"
+        var appId: String?
 
         var i = 0
         while i < args.count {
@@ -101,6 +102,9 @@ enum Command {
                 if i < args.count { accessType = args[i].uppercased() }
             case "--ongoing":
                 accessType = "ONGOING"
+            case "--app-id":
+                i += 1
+                if i < args.count { appId = args[i] }
             case "--wait":
                 wait = true
             case "--download":
@@ -120,7 +124,8 @@ enum Command {
                 granularity: granularity,
                 wait: wait,
                 download: download,
-                accessType: accessType
+                accessType: accessType,
+                appId: appId
             )
         }
 
@@ -137,7 +142,8 @@ enum Command {
             granularity: granularity,
             wait: wait,
             download: download,
-            accessType: accessType
+            accessType: accessType,
+            appId: appId
         )
     }
 

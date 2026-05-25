@@ -42,7 +42,15 @@
       "Bash(cp /tmp/appstore-config-backup-ios.json ~/.appstore-analytics-config.json)",
       "Bash(chmod 600 ~/.appstore-analytics-config.json)",
       "Read(//private/tmp/**)",
-      "Bash(tee /tmp/tvos_download.log)"
+      "Bash(tee /tmp/tvos_download.log)",
+      "Bash(xcode-select -p)",
+      "Bash(xcodebuild -version)",
+      "Bash(pkgutil --pkg-info=com.apple.pkg.CLTools_Executables)",
+      "Bash(~/.swiftly/bin/swiftly list *)",
+      "Bash(~/.swiftly/bin/swiftly --version)",
+      "Bash(swiftly use *)",
+      "Bash(.build/release/appstore-analytics --help)",
+      "Bash(.build/release/appstore-analytics version *)"
     ]
   }
 }
