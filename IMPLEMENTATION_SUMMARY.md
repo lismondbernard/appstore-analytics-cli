@@ -227,6 +227,8 @@ appstore-analytics create-report \
   --start-date 2026-01-01 \
   --end-date 2026-01-14 \
   --granularity DAILY \
+  [--access-type ONE_TIME_SNAPSHOT|ONGOING] \
+  [--app-id <APP_ID>] \
   [--wait] \
   [--download]
 ```
@@ -235,6 +237,8 @@ appstore-analytics create-report \
 - Validates report type (20+ available)
 - Validates date format (YYYY-MM-DD)
 - Enforces max 365-day range
+- Supports both `ONE_TIME_SNAPSHOT` and `ONGOING` access types
+- **Multi-app support**: `--app-id` overrides `default_app_id` in config (added May 2026)
 - Optional wait for completion
 - Optional auto-download
 
@@ -451,7 +455,7 @@ All errors provide clear, actionable messages to guide users.
 - [x] Examples
 
 ### Potential v2.0 Features
-- [ ] Multi-app profile support
+- [x] **Multi-app support** — `--app-id` override on `create-report` (May 2026). Full profile system (multiple stored configs) still pending.
 - [ ] CSV parsing and analytics
 - [ ] Scheduled reports (cron integration)
 - [ ] All 50+ report types (currently 20)
@@ -459,6 +463,10 @@ All errors provide clear, actionable messages to guide users.
 - [ ] GraphQL-style data filtering
 - [ ] Dashboard generation (HTML reports)
 - [ ] Integration with analytics platforms
+
+### Post-v1.0 Changelog
+- **May 2026** — Added `--app-id` flag to `create-report` for multi-app workflows; added `.swift-version` pinning to Xcode toolchain for swiftly users; verified build under Swift 6.2.3.
+- **April 2026** — Fixed `download` command to skip expired report instances (404/NOT_FOUND) instead of aborting the entire download.
 
 ---
 

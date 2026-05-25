@@ -18,9 +18,26 @@ Complete guide to setting up and using the App Store Analytics CLI tool.
 Before you begin, ensure you have:
 
 - **macOS 13.0+** (Ventura or later)
-- **Swift 5.9+** (comes with Xcode 15+)
+- **Swift 5.9+** (comes with Xcode 15+; latest Xcode ships Swift 6.x)
 - **App Store Connect Account** with appropriate permissions
 - **API Key** with Analytics access (Admin or Analytics role)
+
+### Checking your Swift toolchain
+
+```bash
+swift --version
+```
+
+If the version is **below 5.9** and you're using [swiftly](https://www.swift.org/install/), the fastest fix is to point swiftly at Xcode's bundled toolchain:
+
+```bash
+swiftly use xcode
+```
+
+This creates a `.swift-version` file in the project root with the value `xcode`, telling swiftly to use whatever Xcode is currently installed. The repo already contains this file, so any contributor using swiftly will auto-pick the Xcode toolchain when they `cd` into the project. Alternatives:
+
+- `swiftly install latest && swiftly use latest` — install a swift.org-managed toolchain (~250MB download)
+- `xcrun swift build` — bypass swiftly entirely; uses Xcode's toolchain regardless of PATH
 
 ## Installation
 
@@ -469,6 +486,27 @@ appstore-analytics configure  # Creates ~/.appstore-analytics-config.json
 # Or manually edit the config file
 nano ~/.appstore-analytics-config.json
 ```
+
+### Multi-App Analytics from a Single Config
+
+To track more than one App ID without swapping config files, pass `--app-id` to `create-report`. The override takes precedence over `default_app_id` in your config:
+
+```bash
+# Create an ONGOING report for an additional app (e.g., a tvOS companion)
+appstore-analytics create-report \
+  --access-type ONGOING \
+  --app-id 1071673538
+```
+
+Save the returned report request ID. After that, all subsequent commands operate by report request ID and don't need `--app-id`:
+
+```bash
+appstore-analytics status   <REPORT_REQUEST_ID>
+appstore-analytics download <REPORT_REQUEST_ID> --output-dir ./analytics/tvos
+appstore-analytics list-reports
+```
+
+This makes it easy to maintain rolling collections for several apps in parallel.
 
 ### Batch Processing
 

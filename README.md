@@ -14,11 +14,21 @@ A command-line interface for the App Store Connect Analytics API, designed to ge
 ## Requirements
 
 - macOS 13.0+ (Ventura)
-- Swift 5.9+
+- Swift 5.9+ (Xcode 15+ provides this; latest Xcode ships Swift 6.x)
 - App Store Connect API credentials:
   - Issuer ID
   - API Key ID
   - Private Key (.p8 file)
+
+### Toolchain note for swiftly users
+
+If you use [swiftly](https://www.swift.org/install/) as your Swift version manager, ensure it's pointing at a 5.9+ toolchain. The simplest option is to use Xcode's bundled toolchain (no extra download):
+
+```bash
+swiftly use xcode
+```
+
+This project includes a `.swift-version` file pinned to `xcode`. Alternatively run `swiftly install latest && swiftly use latest`, or bypass swiftly with `xcrun swift build`.
 
 ## Installation
 
@@ -129,15 +139,19 @@ appstore-analytics create-report \
   --start-date <YYYY-MM-DD> \
   --end-date <YYYY-MM-DD> \
   [--granularity DAILY|WEEKLY|MONTHLY] \
+  [--access-type ONE_TIME_SNAPSHOT|ONGOING] \
+  [--app-id <APP_ID>] \
   [--wait] \
   [--download]
 ```
 
 **Options:**
-- `--report-type`: Type of report (e.g., APP_STORE_PRODUCT_PAGE_VIEWS)
-- `--start-date`: Start date in YYYY-MM-DD format
-- `--end-date`: End date in YYYY-MM-DD format
+- `--report-type`: Type of report (e.g., APP_STORE_PRODUCT_PAGE_VIEWS). Ignored for `--access-type ONGOING`.
+- `--start-date`: Start date in YYYY-MM-DD format. Ignored for `--access-type ONGOING`.
+- `--end-date`: End date in YYYY-MM-DD format. Ignored for `--access-type ONGOING`.
 - `--granularity`: Data granularity (default: DAILY)
+- `--access-type`: `ONE_TIME_SNAPSHOT` (default, fixed date range) or `ONGOING` (continuous report — Apple keeps refreshing as new data arrives). `--ongoing` is a shortcut for `--access-type ONGOING`.
+- `--app-id`: Override the `default_app_id` in config. Use this when collecting analytics for multiple apps without swapping configs.
 - `--wait`: Wait for report completion
 - `--download`: Automatically download when complete (requires --wait)
 
@@ -272,6 +286,18 @@ appstore-analytics delete-report abc-123-def
 # 6. List available report types
 appstore-analytics list-report-types
 appstore-analytics list-report-types --category commerce
+```
+
+### Multi-App Workflow
+
+Track multiple apps from a single config by passing `--app-id` to `create-report`. The override takes precedence over `default_app_id` and is only needed at report-creation time — subsequent `download`/`status`/`list-reports`/`delete-report` calls operate by report ID and are app-agnostic.
+
+```bash
+# Create an ONGOING report for a different app than the configured default
+appstore-analytics create-report --access-type ONGOING --app-id 1071673538
+
+# Re-download fresh data later (uses the report request ID, not the app ID)
+appstore-analytics download <REPORT_REQUEST_ID> --output-dir analytics-reports/tvos-latest
 ```
 
 ## Security

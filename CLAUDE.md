@@ -12,6 +12,15 @@ App Store Analytics CLI - A command-line tool for interacting with Apple's App S
 
 ## Build and Run Commands
 
+### Toolchain
+The project requires **Swift 5.9+** (currently building cleanly on **6.2.3**). If a `swiftly`-managed toolchain on PATH is older than 5.9, point swiftly at Xcode's bundled toolchain (no separate download needed):
+
+```bash
+swiftly use xcode   # creates/updates .swift-version → "xcode"
+```
+
+The repo's `.swift-version` file pins this project to the active Xcode toolchain for any contributor using swiftly. Alternatives: `swiftly install latest && swiftly use latest`, or prefix commands with `xcrun` to bypass swiftly.
+
 ### Building
 ```bash
 # Debug build
@@ -103,6 +112,11 @@ The CLI uses a command-based architecture with clear separation of concerns:
 - Automatic chmod 600 on save for security
 - Validates private key file existence and permissions on load
 - Tilde path expansion for cross-user compatibility
+
+### Multi-App Support
+A single config holds one `default_app_id`, but `create-report` accepts a `--app-id <APP_ID>` flag that overrides it. The override threads from `Command.parseCreateReportCommand` → `CreateReportCommand.execute(appId:)` → `APIClient.createReportRequest(appId:)`. All other commands (`list-reports`, `download`, `status`, `delete-report`) operate by report request ID and are app-agnostic.
+
+To extend the override to other commands, follow the same wiring: parser → Command enum case → execute() signature → APIClient call.
 
 ### Error Handling
 All major components have dedicated error enums conforming to `LocalizedError`:
@@ -217,18 +231,18 @@ Reference documentation:
 
 ## Configuration File Format
 
-`~/.appstore-analytics-config.json`:
+`~/.appstore-analytics-config.json` (snake_case keys per `Configuration.swift` CodingKeys):
 ```json
 {
-  "apiKeyId": "YOUR_KEY_ID",
-  "appId": "YOUR_APP_ID",
-  "issuerId": "YOUR_ISSUER_ID",
-  "outputDirectory": "./analytics-reports",
-  "privateKeyPath": "~/path/to/AuthKey_XXXXXXXXXX.p8"
+  "api_key_id": "YOUR_KEY_ID",
+  "default_app_id": "YOUR_APP_ID",
+  "default_output_dir": "./analytics-reports",
+  "issuer_id": "YOUR_ISSUER_ID",
+  "private_key_path": "~/path/to/AuthKey_XXXXXXXXXX.p8"
 }
 ```
 
-File is automatically created with 600 permissions by `ConfigManager`.
+File is automatically created with 600 permissions by `ConfigManager`. The `default_app_id` is the app used by `create-report` when no `--app-id` flag is provided.
 
 ## Security Considerations
 
