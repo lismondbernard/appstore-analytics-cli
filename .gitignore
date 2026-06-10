@@ -22,6 +22,12 @@ reports/
 downloads/
 *.csv
 
+# Internal docs (kept in ~/Projects/SilentSpice/project-docs)
+docs/
+
+# Claude Code per-user settings
+.claude/settings.local.json
+
 # IDE
 .vscode/
 .idea/
