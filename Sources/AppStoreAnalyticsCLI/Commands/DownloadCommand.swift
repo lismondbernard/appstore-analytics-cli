@@ -102,6 +102,11 @@ struct DownloadCommand {
                     skippedCount += 1
                     continue
                 }
+                if errorMessage.contains("500") || errorMessage.contains("UNEXPECTED_ERROR") {
+                    Logger.error("Instance \(instance.id) returned a server error, skipping...")
+                    skippedCount += 1
+                    continue
+                }
                 throw error
             }
 
