@@ -8,7 +8,7 @@ enum Command {
     case status(reportRequestId: String, watch: Bool, interval: Int, reportType: String?)
     case deleteReport(reportRequestId: String)
     case listReportTypes(category: String?)
-    case sales(vendorNumber: String?, frequency: String, reportDate: String?, last: Int, reportType: String, detailed: Bool, format: String, outputPath: String?)
+    case sales(vendorNumbers: [String], frequency: String, reportDate: String?, last: Int, reportType: String, detailed: Bool, format: String, outputPath: String?)
     case help
     case version
 
@@ -253,7 +253,7 @@ enum Command {
     }
 
     private static func parseSalesCommand(args: [String]) -> Command {
-        var vendorNumber: String?
+        var vendorNumbers: [String] = []
         var frequency = "MONTHLY"
         var reportDate: String?
         var last = 1
@@ -266,8 +266,16 @@ enum Command {
         while i < args.count {
             switch args[i] {
             case "--vendor-number":
+                // Repeatable, and accepts a comma-separated list: an entity
+                // change (sole proprietor → LLC) issues a new vendor number
+                // while history stays under the old one.
                 i += 1
-                if i < args.count { vendorNumber = args[i] }
+                if i < args.count {
+                    vendorNumbers.append(contentsOf: args[i]
+                        .split(separator: ",")
+                        .map { $0.trimmingCharacters(in: .whitespaces) }
+                        .filter { !$0.isEmpty })
+                }
             case "--frequency":
                 i += 1
                 if i < args.count { frequency = args[i] }
@@ -295,7 +303,7 @@ enum Command {
         }
 
         return .sales(
-            vendorNumber: vendorNumber,
+            vendorNumbers: vendorNumbers,
             frequency: frequency,
             reportDate: reportDate,
             last: last,

@@ -39,12 +39,17 @@ struct SalesLineItem {
     var units: Int
     var proceeds: Decimal
     var currencies: Set<String>
+    /// Which vendor number(s) reported this product. A product sold before and
+    /// after an entity change appears under both.
+    var vendors: Set<String>
 }
 
 struct SalesSummary {
     let lineItems: [SalesLineItem]
     let periodsCovered: [String]
     let periodsWithNoData: [String]
+    /// Vendor numbers the configured API key could not read.
+    var inaccessibleVendors: [String] = []
 
     var inAppPurchases: [SalesLineItem] { lineItems.filter(\.isInAppPurchase) }
     var appDownloads: [SalesLineItem] { lineItems.filter { !$0.isInAppPurchase } }
@@ -61,6 +66,10 @@ struct SalesSummary {
     /// involved; Apple reports each territory in its own settlement currency.
     var currencies: Set<String> {
         lineItems.reduce(into: Set<String>()) { $0.formUnion($1.currencies) }
+    }
+
+    var vendors: Set<String> {
+        lineItems.reduce(into: Set<String>()) { $0.formUnion($1.vendors) }
     }
 
     var isEmpty: Bool { lineItems.isEmpty }

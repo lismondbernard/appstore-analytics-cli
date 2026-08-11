@@ -29,7 +29,7 @@ enum SalesCommandError: LocalizedError {
 /// devices, so a handful of purchases simply never appears there.
 struct SalesCommand {
     static func execute(
-        vendorNumber: String?,
+        vendorNumbers requestedVendors: [String],
         frequency: String,
         reportDate: String?,
         last: Int,
@@ -40,7 +40,8 @@ struct SalesCommand {
     ) async throws {
         let configuration = try ConfigManager.shared.loadConfiguration()
 
-        guard let vendor = vendorNumber ?? configuration.vendorNumber, !vendor.isEmpty else {
+        let vendors = requestedVendors.isEmpty ? configuration.vendorNumbers : requestedVendors
+        guard !vendors.isEmpty else {
             throw SalesCommandError.missingVendorNumber
         }
 
@@ -69,36 +70,62 @@ struct SalesCommand {
 
         let client = try APIClient(configuration: configuration)
 
-        Logger.info("Fetching \(periods.count) \(frequencyValue.rawValue.lowercased()) \(reportType) report(s) for vendor \(vendor)...")
+        Logger.info(
+            "Fetching \(periods.count) \(frequencyValue.rawValue.lowercased()) \(reportType) report(s) "
+            + "across \(vendors.count) vendor number(s): \(vendors.joined(separator: ", "))..."
+        )
 
-        var rows: [SalesReportRow] = []
-        var covered: [String] = []
-        var empty: [String] = []
+        var rowsByVendor: [(vendor: String, rows: [SalesReportRow])] = []
+        var covered = Set<String>()
+        var inaccessible: [String] = []
         var rawReports: [String] = []
 
-        for period in periods {
-            let text = try await client.fetchSalesReport(
-                vendorNumber: vendor,
-                frequency: frequencyValue,
-                reportDate: period,
-                reportType: sdkReportType,
-                subType: detailed ? .detailed : .summary
-            )
+        for vendor in vendors {
+            var vendorRows: [SalesReportRow] = []
+            var vendorAuthorized = true
 
-            guard let text else {
-                empty.append(period)
-                continue
+            for period in periods {
+                let fetched = try await client.fetchSalesReport(
+                    vendorNumber: vendor,
+                    frequency: frequencyValue,
+                    reportDate: period,
+                    reportType: sdkReportType,
+                    subType: detailed ? .detailed : .summary
+                )
+
+                switch fetched {
+                case .report(let text):
+                    covered.insert(period)
+                    rawReports.append(text)
+                    vendorRows.append(contentsOf: SalesReportParser.parseRows(text))
+                case .noReport:
+                    // Expected: each vendor only has data for the periods when
+                    // that legal entity was the one selling.
+                    continue
+                case .notAuthorized:
+                    vendorAuthorized = false
+                }
+
+                if !vendorAuthorized { break }
             }
 
-            covered.append(period)
-            rawReports.append(text)
-            rows.append(contentsOf: SalesReportParser.parseRows(text))
+            if vendorAuthorized {
+                rowsByVendor.append((vendor: vendor, rows: vendorRows))
+            } else {
+                inaccessible.append(vendor)
+                Logger.error("Vendor \(vendor) is not readable with the configured API key.")
+                Logger.info("If that entity is a separate App Store Connect account, it needs its own key.")
+            }
         }
 
+        // Periods with no data from any vendor.
+        let empty = periods.filter { !covered.contains($0) }
+
         let summary = SalesReportParser.summarize(
-            rows: rows,
-            periodsCovered: covered,
-            periodsWithNoData: empty
+            rowsByVendor: rowsByVendor,
+            periodsCovered: periods.filter { covered.contains($0) },
+            periodsWithNoData: empty,
+            inaccessibleVendors: inaccessible
         )
 
         let output: String
@@ -124,6 +151,13 @@ struct SalesCommand {
 
     private static func renderTable(_ summary: SalesSummary) -> String {
         var lines: [String] = []
+
+        if !summary.inaccessibleVendors.isEmpty {
+            // Say this loudly: a silently skipped vendor makes the totals wrong
+            // rather than merely incomplete.
+            lines.append("INCOMPLETE — no access to vendor(s): \(summary.inaccessibleVendors.joined(separator: ", "))")
+            lines.append("")
+        }
 
         if !summary.periodsWithNoData.isEmpty {
             lines.append("No report for: \(summary.periodsWithNoData.joined(separator: ", "))")
@@ -158,6 +192,15 @@ struct SalesCommand {
         lines.append("")
         lines.append("In-app purchase units: \(summary.totalInAppPurchaseUnits)")
 
+        if summary.vendors.count > 1 {
+            for vendor in summary.vendors.sorted() {
+                let units = summary.lineItems
+                    .filter { $0.vendors.contains(vendor) && $0.isInAppPurchase }
+                    .reduce(0) { $0 + $1.units }
+                lines.append("  vendor \(vendor): \(units)")
+            }
+        }
+
         if summary.currencies.count > 1 {
             // Summing across settlement currencies would invent a number.
             lines.append("Proceeds span \(summary.currencies.sorted().joined(separator: ", ")) — not summed.")
@@ -172,6 +215,7 @@ struct SalesCommand {
         let payload: [String: Any] = [
             "periods_covered": summary.periodsCovered,
             "periods_with_no_data": summary.periodsWithNoData,
+            "inaccessible_vendors": summary.inaccessibleVendors,
             "in_app_purchase_units": summary.totalInAppPurchaseUnits,
             "currencies": summary.currencies.sorted(),
             "line_items": summary.lineItems.map { item in
@@ -183,6 +227,7 @@ struct SalesCommand {
                     "units": item.units,
                     "proceeds": "\(item.proceeds)",
                     "currencies": item.currencies.sorted(),
+                    "vendors": item.vendors.sorted(),
                 ]
             },
         ]

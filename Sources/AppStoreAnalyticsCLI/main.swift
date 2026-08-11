@@ -66,9 +66,9 @@ struct AppStoreAnalyticsCLI {
             case .listReportTypes(let category):
                 ListReportTypesCommand.execute(category: category)
 
-            case .sales(let vendorNumber, let frequency, let reportDate, let last, let reportType, let detailed, let format, let outputPath):
+            case .sales(let vendorNumbers, let frequency, let reportDate, let last, let reportType, let detailed, let format, let outputPath):
                 try await SalesCommand.execute(
-                    vendorNumber: vendorNumber,
+                    vendorNumbers: vendorNumbers,
                     frequency: frequency,
                     reportDate: reportDate,
                     last: last,
@@ -151,7 +151,7 @@ struct AppStoreAnalyticsCLI {
 
         SALES:
             appstore-analytics sales \\
-                [--vendor-number <NUMBER>] \\
+                [--vendor-number <NUMBER>[,<NUMBER>...]]... \\
                 [--frequency DAILY|WEEKLY|MONTHLY|YEARLY] \\
                 [--date <REPORT_DATE>] \\
                 [--last <N>] \\
@@ -167,6 +167,11 @@ struct AppStoreAnalyticsCLI {
             YYYY-MM (monthly), YYYY (yearly); omit it to get the last N closed
             periods. The vendor number lives in App Store Connect under Payments
             and Financial Reports — no API exposes it.
+
+            --vendor-number is repeatable and accepts a comma-separated list. A
+            vendor number belongs to a legal entity, not an app: re-incorporating
+            issues a new one and history stays under the old one, so covering the
+            full history means querying both.
 
         LIST REPORT TYPES:
             appstore-analytics list-report-types [--category <CATEGORY>]

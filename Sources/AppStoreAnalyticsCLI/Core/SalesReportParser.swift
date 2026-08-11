@@ -36,8 +36,27 @@ enum SalesReportParser {
         periodsCovered: [String] = [],
         periodsWithNoData: [String] = []
     ) -> SalesSummary {
+        summarize(
+            rowsByVendor: [(vendor: "", rows: rows)],
+            periodsCovered: periodsCovered,
+            periodsWithNoData: periodsWithNoData
+        )
+    }
+
+    /// Same, across several vendor numbers.
+    ///
+    /// Products are merged by SKU regardless of vendor: an entity change gives
+    /// the same product a new vendor number, and reporting it as two products
+    /// would double the apparent catalogue while splitting its unit count.
+    static func summarize(
+        rowsByVendor: [(vendor: String, rows: [SalesReportRow])],
+        periodsCovered: [String] = [],
+        periodsWithNoData: [String] = [],
+        inaccessibleVendors: [String] = []
+    ) -> SalesSummary {
         var bySKU: [String: SalesLineItem] = [:]
 
+        for (vendor, rows) in rowsByVendor {
         for row in rows {
             // Key on product type too: an app and its IAP can share a SKU stem
             // and must never be merged into one line.
@@ -48,6 +67,9 @@ enum SalesReportParser {
                 existing.proceeds += row.developerProceeds * Decimal(row.units)
                 if !row.currencyOfProceeds.isEmpty {
                     existing.currencies.insert(row.currencyOfProceeds)
+                }
+                if !vendor.isEmpty {
+                    existing.vendors.insert(vendor)
                 }
                 bySKU[key] = existing
             } else {
@@ -60,9 +82,11 @@ enum SalesReportParser {
                     // "Developer Proceeds" is per unit, so a row of 3 units at
                     // $0.70 is $2.10 — summing the column alone undercounts.
                     proceeds: row.developerProceeds * Decimal(row.units),
-                    currencies: row.currencyOfProceeds.isEmpty ? [] : [row.currencyOfProceeds]
+                    currencies: row.currencyOfProceeds.isEmpty ? [] : [row.currencyOfProceeds],
+                    vendors: vendor.isEmpty ? [] : [vendor]
                 )
             }
+        }
         }
 
         let sorted = bySKU.values.sorted {
@@ -72,7 +96,8 @@ enum SalesReportParser {
         return SalesSummary(
             lineItems: sorted,
             periodsCovered: periodsCovered,
-            periodsWithNoData: periodsWithNoData
+            periodsWithNoData: periodsWithNoData,
+            inaccessibleVendors: inaccessibleVendors
         )
     }
 }

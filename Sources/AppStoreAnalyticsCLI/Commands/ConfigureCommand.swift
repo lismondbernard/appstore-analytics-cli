@@ -38,12 +38,20 @@ struct ConfigureCommand {
         // Optional: only the 'sales' command needs it, and it can't be looked
         // up via the API — it lives in App Store Connect under Payments and
         // Financial Reports. Keep whatever is already configured if skipped.
+        // Comma-separated because a vendor number belongs to a legal entity:
+        // re-incorporating issues a new one and history stays under the old.
         let existing = try? ConfigManager.shared.loadConfiguration()
-        let enteredVendorNumber = UserInput.readLine(
-            prompt: "Enter your vendor number for Sales and Trends (optional)\(existing?.vendorNumber.map { " [\($0)]" } ?? "")"
+        let existingVendors = existing?.vendorNumbers ?? []
+        let entered = UserInput.readLine(
+            prompt: "Enter vendor number(s) for Sales and Trends, comma-separated, oldest first (optional)"
+                + (existingVendors.isEmpty ? "" : " [\(existingVendors.joined(separator: ","))]")
         )?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let finalVendorNumber = (enteredVendorNumber?.isEmpty == false ? enteredVendorNumber : nil)
-            ?? existing?.vendorNumber
+
+        let parsedVendors = (entered ?? "")
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        let finalVendorNumbers = parsedVendors.isEmpty ? existingVendors : parsedVendors
 
         // Validate private key file exists
         let expandedKeyPath = UserInput.expandTildePath(finalPrivateKeyPath)
@@ -76,7 +84,7 @@ struct ConfigureCommand {
             privateKeyPath: finalPrivateKeyPath,
             defaultAppId: finalAppId,
             defaultOutputDir: defaultOutputDir,
-            vendorNumber: finalVendorNumber
+            vendorNumbers: finalVendorNumbers
         )
 
         // Validate private key can be read

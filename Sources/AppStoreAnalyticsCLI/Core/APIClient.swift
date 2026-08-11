@@ -257,11 +257,20 @@ actor APIClient {
 
     // MARK: - Sales and Trends
 
-    /// Fetch one Sales and Trends report as tab-separated text.
+    /// Outcome of asking for one vendor's report for one period.
     ///
-    /// Returns nil when Apple has no report for that period — a 404 here means
-    /// "nothing sold / not generated yet", which is an ordinary answer rather
-    /// than an error, and the caller may be looping over many periods.
+    /// Both "no data" and "not your vendor" are ordinary answers when sweeping
+    /// several vendor numbers across several periods — neither should abort the
+    /// run, but they mean very different things to the user.
+    enum SalesReportFetch {
+        case report(String)
+        /// 404 — Apple has no report for that vendor and period.
+        case noReport
+        /// 403 — the configured API key cannot see that vendor number.
+        case notAuthorized
+    }
+
+    /// Fetch one Sales and Trends report as tab-separated text.
     ///
     /// Note this is a different data source from the analytics reports above:
     /// Sales and Trends is the transaction record, so it is exact and carries
@@ -272,7 +281,7 @@ actor APIClient {
         reportDate: String,
         reportType: APIEndpoint.V1.SalesReports.GetParameters.FilterReportType = .sales,
         subType: APIEndpoint.V1.SalesReports.GetParameters.FilterReportSubType = .summary
-    ) async throws -> String? {
+    ) async throws -> SalesReportFetch {
         try await rateLimiter.acquirePermit()
 
         let sdkFrequency: APIEndpoint.V1.SalesReports.GetParameters.FilterFrequency
@@ -295,8 +304,12 @@ actor APIClient {
         do {
             data = try await provider.request(request)
         } catch let error as APIProvider.Error {
-            if case .requestFailure(let statusCode, _, _) = error, statusCode == 404 {
-                return nil
+            if case .requestFailure(let statusCode, _, _) = error {
+                switch statusCode {
+                case 404: return .noReport
+                case 401, 403: return .notAuthorized
+                default: break
+                }
             }
             throw error
         }
@@ -308,7 +321,7 @@ actor APIClient {
         guard let text = String(data: decompressed, encoding: .utf8) else {
             throw APIClientError.invalidResponse
         }
-        return text
+        return .report(text)
     }
 
     /// Get segments for a report instance

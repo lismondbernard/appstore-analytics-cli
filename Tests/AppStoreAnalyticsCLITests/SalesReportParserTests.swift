@@ -101,6 +101,63 @@ final class SalesReportParserTests: XCTestCase {
         XCTAssertEqual(summary.currencies, ["USD", "EUR"])
     }
 
+    // MARK: - Multiple vendor numbers
+
+    /// Re-incorporating (sole proprietor → LLC) issues a new vendor number
+    /// while history stays under the old one. The same product must merge
+    /// across both rather than appearing twice with split unit counts.
+    func testSameProductMergesAcrossVendorNumbers() {
+        let legacy = SalesReportParser.parseRows([
+            "SKU\tTitle\tUnits\tProduct Type Identifier\tDeveloper Proceeds\tCurrency of Proceeds",
+            "TP_UNLOCK\tTennisParent\t2\tIA1\t3.50\tUSD",
+        ].joined(separator: "\n"))
+        let llc = SalesReportParser.parseRows([
+            "SKU\tTitle\tUnits\tProduct Type Identifier\tDeveloper Proceeds\tCurrency of Proceeds",
+            "TP_UNLOCK\tTennisParent\t3\tIA1\t3.50\tUSD",
+        ].joined(separator: "\n"))
+
+        let summary = SalesReportParser.summarize(rowsByVendor: [
+            (vendor: "80078236", rows: legacy),
+            (vendor: "94679843", rows: llc),
+        ])
+
+        XCTAssertEqual(summary.lineItems.count, 1, "One product, not one per entity")
+        XCTAssertEqual(summary.totalInAppPurchaseUnits, 5)
+        XCTAssertEqual(summary.lineItems.first?.vendors, ["80078236", "94679843"])
+        XCTAssertEqual(summary.totalProceeds, Decimal(string: "17.50"))
+    }
+
+    func testVendorAttributionIsTrackedPerLineItem() {
+        let onlyLegacy = SalesReportParser.parseRows([
+            "SKU\tUnits\tProduct Type Identifier",
+            "OLD_IAP\t1\tIA1",
+        ].joined(separator: "\n"))
+        let onlyLLC = SalesReportParser.parseRows([
+            "SKU\tUnits\tProduct Type Identifier",
+            "NEW_IAP\t4\tIA1",
+        ].joined(separator: "\n"))
+
+        let summary = SalesReportParser.summarize(rowsByVendor: [
+            (vendor: "80078236", rows: onlyLegacy),
+            (vendor: "94679843", rows: onlyLLC),
+        ])
+
+        XCTAssertEqual(summary.vendors, ["80078236", "94679843"])
+        XCTAssertEqual(summary.lineItems.first(where: { $0.sku == "OLD_IAP" })?.vendors, ["80078236"])
+        XCTAssertEqual(summary.lineItems.first(where: { $0.sku == "NEW_IAP" })?.vendors, ["94679843"])
+    }
+
+    /// A vendor the API key cannot read makes the totals wrong, not merely
+    /// incomplete, so it has to be carried through to the output.
+    func testInaccessibleVendorsAreCarriedIntoTheSummary() {
+        let summary = SalesReportParser.summarize(
+            rowsByVendor: [(vendor: "94679843", rows: [])],
+            inaccessibleVendors: ["80078236"]
+        )
+
+        XCTAssertEqual(summary.inaccessibleVendors, ["80078236"])
+    }
+
     func testEmptySummaryReportsZeroRatherThanNil() {
         let summary = SalesReportParser.summarize(rows: [], periodsCovered: ["2026-07"], periodsWithNoData: ["2026-08"])
 
