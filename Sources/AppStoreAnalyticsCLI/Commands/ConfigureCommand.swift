@@ -5,53 +5,68 @@ struct ConfigureCommand {
         issuerId: String?,
         keyId: String?,
         privateKeyPath: String?,
-        appId: String?
+        appId: String?,
+        vendorNumbers: [String] = []
     ) async throws {
-        Logger.info("Configuring App Store Analytics CLI")
+        let existing = try? ConfigManager.shared.loadConfiguration()
 
-        // Prompt for missing values
-        let finalIssuerId = issuerId ?? promptForValue(
-            "Enter your Issuer ID",
-            required: true
-        )
+        // Passing any flag against an existing config means "update just these
+        // fields": everything else keeps its stored value and nothing is
+        // prompted for. Bare `configure` stays fully interactive, so first-time
+        // setup and deliberate reconfiguration are unchanged.
+        let isTargetedUpdate = existing != nil
+            && (issuerId != nil || keyId != nil || privateKeyPath != nil || appId != nil || !vendorNumbers.isEmpty)
 
-        let finalKeyId = keyId ?? promptForValue(
-            "Enter your API Key ID",
-            required: true
-        )
+        Logger.info(isTargetedUpdate ? "Updating existing configuration" : "Configuring App Store Analytics CLI")
 
-        let finalPrivateKeyPath = privateKeyPath ?? promptForValue(
-            "Enter the path to your private key (.p8 file)",
-            required: true
-        )
+        func resolve(_ provided: String?, stored: String?, prompt: String) -> String {
+            if let provided { return provided }
+            if isTargetedUpdate, let stored { return stored }
+            return promptForValue(prompt, required: true)
+        }
 
-        let finalAppId = appId ?? promptForValue(
-            "Enter your default App ID",
-            required: true
+        let finalIssuerId = resolve(issuerId, stored: existing?.issuerId, prompt: "Enter your Issuer ID")
+        let finalKeyId = resolve(keyId, stored: existing?.apiKeyId, prompt: "Enter your API Key ID")
+        let finalPrivateKeyPath = resolve(
+            privateKeyPath,
+            stored: existing?.privateKeyPath,
+            prompt: "Enter the path to your private key (.p8 file)"
         )
+        let finalAppId = resolve(appId, stored: existing?.defaultAppId, prompt: "Enter your default App ID")
 
-        let defaultOutputDir = promptForValue(
-            "Enter default output directory for reports",
-            defaultValue: "./analytics-reports"
-        )
+        let defaultOutputDir: String
+        if isTargetedUpdate, let stored = existing?.defaultOutputDir {
+            defaultOutputDir = stored
+        } else {
+            defaultOutputDir = promptForValue(
+                "Enter default output directory for reports",
+                defaultValue: "./analytics-reports"
+            )
+        }
 
         // Optional: only the 'sales' command needs it, and it can't be looked
         // up via the API — it lives in App Store Connect under Payments and
         // Financial Reports. Keep whatever is already configured if skipped.
         // Comma-separated because a vendor number belongs to a legal entity:
         // re-incorporating issues a new one and history stays under the old.
-        let existing = try? ConfigManager.shared.loadConfiguration()
         let existingVendors = existing?.vendorNumbers ?? []
-        let entered = UserInput.readLine(
-            prompt: "Enter vendor number(s) for Sales and Trends, comma-separated, oldest first (optional)"
-                + (existingVendors.isEmpty ? "" : " [\(existingVendors.joined(separator: ","))]")
-        )?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let finalVendorNumbers: [String]
+        if !vendorNumbers.isEmpty {
+            finalVendorNumbers = vendorNumbers
+        } else if isTargetedUpdate {
+            finalVendorNumbers = existingVendors
+        } else {
+            let entered = UserInput.readLine(
+                prompt: "Enter vendor number(s) for Sales and Trends, comma-separated, oldest first (optional)"
+                    + (existingVendors.isEmpty ? "" : " [\(existingVendors.joined(separator: ","))]")
+            )?.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        let parsedVendors = (entered ?? "")
-            .split(separator: ",")
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { !$0.isEmpty }
-        let finalVendorNumbers = parsedVendors.isEmpty ? existingVendors : parsedVendors
+            let parsed = (entered ?? "")
+                .split(separator: ",")
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+            finalVendorNumbers = parsed.isEmpty ? existingVendors : parsed
+        }
 
         // Validate private key file exists
         let expandedKeyPath = UserInput.expandTildePath(finalPrivateKeyPath)

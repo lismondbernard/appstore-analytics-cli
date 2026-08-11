@@ -1,7 +1,7 @@
 import Foundation
 
 enum Command {
-    case configure(issuerId: String?, keyId: String?, privateKeyPath: String?, appId: String?)
+    case configure(issuerId: String?, keyId: String?, privateKeyPath: String?, appId: String?, vendorNumbers: [String])
     case createReport(reportType: String, startDate: String, endDate: String, granularity: String, wait: Bool, download: Bool, accessType: String, appId: String?)
     case listReports(category: String?, status: String?, format: String)
     case download(reportRequestId: String, outputDir: String?, merge: Bool, overwrite: Bool, reportType: String?)
@@ -50,10 +50,19 @@ enum Command {
         var keyId: String?
         var privateKeyPath: String?
         var appId: String?
+        var vendorNumbers: [String] = []
 
         var i = 0
         while i < args.count {
             switch args[i] {
+            case "--vendor-number":
+                i += 1
+                if i < args.count {
+                    vendorNumbers.append(contentsOf: args[i]
+                        .split(separator: ",")
+                        .map { $0.trimmingCharacters(in: .whitespaces) }
+                        .filter { !$0.isEmpty })
+                }
             case "--issuer-id":
                 i += 1
                 if i < args.count { issuerId = args[i] }
@@ -72,7 +81,13 @@ enum Command {
             i += 1
         }
 
-        return .configure(issuerId: issuerId, keyId: keyId, privateKeyPath: privateKeyPath, appId: appId)
+        return .configure(
+            issuerId: issuerId,
+            keyId: keyId,
+            privateKeyPath: privateKeyPath,
+            appId: appId,
+            vendorNumbers: vendorNumbers
+        )
     }
 
     private static func parseCreateReportCommand(args: [String]) -> Command? {

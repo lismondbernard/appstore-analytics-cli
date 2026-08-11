@@ -14,12 +14,13 @@ struct AppStoreAnalyticsCLI {
 
         do {
             switch command {
-            case .configure(let issuerId, let keyId, let privateKeyPath, let appId):
+            case .configure(let issuerId, let keyId, let privateKeyPath, let appId, let vendorNumbers):
                 try await ConfigureCommand.execute(
                     issuerId: issuerId,
                     keyId: keyId,
                     privateKeyPath: privateKeyPath,
-                    appId: appId
+                    appId: appId,
+                    vendorNumbers: vendorNumbers
                 )
 
             case .createReport(let reportType, let startDate, let endDate, let granularity, let wait, let download, let accessType, let appId):
@@ -114,7 +115,13 @@ struct AppStoreAnalyticsCLI {
                 --issuer-id <ISSUER_ID> \\
                 --key-id <KEY_ID> \\
                 --private-key-path <PATH_TO_P8> \\
-                --app-id <APP_ID>
+                --app-id <APP_ID> \\
+                [--vendor-number <NUMBER>[,<NUMBER>...]]
+
+            Run bare for an interactive setup. Passing any flag against an
+            existing config updates only those fields and leaves the rest alone,
+            so e.g. 'configure --vendor-number 123,456' won't re-prompt for
+            credentials.
 
         CREATE REPORT:
             appstore-analytics create-report \\
