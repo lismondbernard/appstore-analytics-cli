@@ -35,6 +35,16 @@ struct ConfigureCommand {
             defaultValue: "./analytics-reports"
         )
 
+        // Optional: only the 'sales' command needs it, and it can't be looked
+        // up via the API — it lives in App Store Connect under Payments and
+        // Financial Reports. Keep whatever is already configured if skipped.
+        let existing = try? ConfigManager.shared.loadConfiguration()
+        let enteredVendorNumber = UserInput.readLine(
+            prompt: "Enter your vendor number for Sales and Trends (optional)\(existing?.vendorNumber.map { " [\($0)]" } ?? "")"
+        )?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let finalVendorNumber = (enteredVendorNumber?.isEmpty == false ? enteredVendorNumber : nil)
+            ?? existing?.vendorNumber
+
         // Validate private key file exists
         let expandedKeyPath = UserInput.expandTildePath(finalPrivateKeyPath)
         let fileManager = FileManager.default
@@ -65,7 +75,8 @@ struct ConfigureCommand {
             apiKeyId: finalKeyId,
             privateKeyPath: finalPrivateKeyPath,
             defaultAppId: finalAppId,
-            defaultOutputDir: defaultOutputDir
+            defaultOutputDir: defaultOutputDir,
+            vendorNumber: finalVendorNumber
         )
 
         // Validate private key can be read

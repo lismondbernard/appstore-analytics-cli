@@ -255,6 +255,62 @@ actor APIClient {
         _ = try await provider.request(request)
     }
 
+    // MARK: - Sales and Trends
+
+    /// Fetch one Sales and Trends report as tab-separated text.
+    ///
+    /// Returns nil when Apple has no report for that period — a 404 here means
+    /// "nothing sold / not generated yet", which is an ordinary answer rather
+    /// than an error, and the caller may be looping over many periods.
+    ///
+    /// Note this is a different data source from the analytics reports above:
+    /// Sales and Trends is the transaction record, so it is exact and carries
+    /// no privacy threshold.
+    func fetchSalesReport(
+        vendorNumber: String,
+        frequency: SalesReportPeriod.Frequency,
+        reportDate: String,
+        reportType: APIEndpoint.V1.SalesReports.GetParameters.FilterReportType = .sales,
+        subType: APIEndpoint.V1.SalesReports.GetParameters.FilterReportSubType = .summary
+    ) async throws -> String? {
+        try await rateLimiter.acquirePermit()
+
+        let sdkFrequency: APIEndpoint.V1.SalesReports.GetParameters.FilterFrequency
+        switch frequency {
+        case .daily: sdkFrequency = .daily
+        case .weekly: sdkFrequency = .weekly
+        case .monthly: sdkFrequency = .monthly
+        case .yearly: sdkFrequency = .yearly
+        }
+
+        let request = APIEndpoint.v1.salesReports.get(parameters: .init(
+            filterVendorNumber: [vendorNumber],
+            filterReportType: [reportType],
+            filterReportSubType: [subType],
+            filterFrequency: [sdkFrequency],
+            filterReportDate: [reportDate]
+        ))
+
+        let data: Data
+        do {
+            data = try await provider.request(request)
+        } catch let error as APIProvider.Error {
+            if case .requestFailure(let statusCode, _, _) = error, statusCode == 404 {
+                return nil
+            }
+            throw error
+        }
+
+        // Apple serves these gzipped with Content-Type application/a-gzip, so
+        // URLSession does not transparently inflate them the way it would for
+        // a Content-Encoding response.
+        let decompressed = CSVDownloader.decompressGzipIfNeeded(data)
+        guard let text = String(data: decompressed, encoding: .utf8) else {
+            throw APIClientError.invalidResponse
+        }
+        return text
+    }
+
     /// Get segments for a report instance
     func getReportSegments(instanceId: String) async throws -> [AnalyticsReportSegment] {
         try await rateLimiter.acquirePermit()

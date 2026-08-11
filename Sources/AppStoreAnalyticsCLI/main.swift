@@ -66,6 +66,18 @@ struct AppStoreAnalyticsCLI {
             case .listReportTypes(let category):
                 ListReportTypesCommand.execute(category: category)
 
+            case .sales(let vendorNumber, let frequency, let reportDate, let last, let reportType, let detailed, let format, let outputPath):
+                try await SalesCommand.execute(
+                    vendorNumber: vendorNumber,
+                    frequency: frequency,
+                    reportDate: reportDate,
+                    last: last,
+                    reportType: reportType,
+                    detailed: detailed,
+                    format: format,
+                    outputPath: outputPath
+                )
+
             case .help:
                 printUsage()
 
@@ -92,6 +104,7 @@ struct AppStoreAnalyticsCLI {
             download               Download report CSV files
             status                 Check report status
             delete-report          Delete an analytics report request
+            sales                  Show actual units and proceeds (Sales and Trends)
             list-report-types      List available report types
             help                   Show this help message
             version                Show version information
@@ -135,6 +148,25 @@ struct AppStoreAnalyticsCLI {
 
         DELETE REPORT:
             appstore-analytics delete-report <REPORT_REQUEST_ID>
+
+        SALES:
+            appstore-analytics sales \\
+                [--vendor-number <NUMBER>] \\
+                [--frequency DAILY|WEEKLY|MONTHLY|YEARLY] \\
+                [--date <REPORT_DATE>] \\
+                [--last <N>] \\
+                [--report-type SALES|SUBSCRIPTION|SUBSCRIPTION_EVENT|SUBSCRIBER|INSTALLS|PRE_ORDER] \\
+                [--detailed] \\
+                [--format table|tsv|json] \\
+                [--out <FILE>]
+
+            Sales and Trends is the transaction record: it reports exact units
+            with no privacy threshold, unlike the analytics reports above, which
+            omit any row covering fewer than five users or devices. Use this for
+            revenue questions. --date formats are YYYY-MM-DD (daily/weekly),
+            YYYY-MM (monthly), YYYY (yearly); omit it to get the last N closed
+            periods. The vendor number lives in App Store Connect under Payments
+            and Financial Reports — no API exposes it.
 
         LIST REPORT TYPES:
             appstore-analytics list-report-types [--category <CATEGORY>]

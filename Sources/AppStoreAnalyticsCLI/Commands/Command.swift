@@ -8,6 +8,7 @@ enum Command {
     case status(reportRequestId: String, watch: Bool, interval: Int, reportType: String?)
     case deleteReport(reportRequestId: String)
     case listReportTypes(category: String?)
+    case sales(vendorNumber: String?, frequency: String, reportDate: String?, last: Int, reportType: String, detailed: Bool, format: String, outputPath: String?)
     case help
     case version
 
@@ -33,6 +34,8 @@ enum Command {
             return parseDeleteReportCommand(args: args)
         case "list-report-types":
             return parseListReportTypesCommand(args: args)
+        case "sales":
+            return parseSalesCommand(args: args)
         case "help", "--help", "-h":
             return .help
         case "version", "--version", "-v":
@@ -247,6 +250,60 @@ enum Command {
             return nil
         }
         return .deleteReport(reportRequestId: reportRequestId)
+    }
+
+    private static func parseSalesCommand(args: [String]) -> Command {
+        var vendorNumber: String?
+        var frequency = "MONTHLY"
+        var reportDate: String?
+        var last = 1
+        var reportType = "SALES"
+        var detailed = false
+        var format = "table"
+        var outputPath: String?
+
+        var i = 0
+        while i < args.count {
+            switch args[i] {
+            case "--vendor-number":
+                i += 1
+                if i < args.count { vendorNumber = args[i] }
+            case "--frequency":
+                i += 1
+                if i < args.count { frequency = args[i] }
+            case "--date":
+                i += 1
+                if i < args.count { reportDate = args[i] }
+            case "--last":
+                i += 1
+                if i < args.count, let value = Int(args[i]), value > 0 { last = value }
+            case "--report-type":
+                i += 1
+                if i < args.count { reportType = args[i] }
+            case "--detailed":
+                detailed = true
+            case "--format":
+                i += 1
+                if i < args.count { format = args[i] }
+            case "--out":
+                i += 1
+                if i < args.count { outputPath = args[i] }
+            default:
+                break
+            }
+            i += 1
+        }
+
+        return .sales(
+            vendorNumber: vendorNumber,
+            frequency: frequency,
+            reportDate: reportDate,
+            last: last,
+            reportType: reportType,
+            detailed: detailed,
+            format: format,
+            outputPath: outputPath
+        )
     }
 
     private static func parseListReportTypesCommand(args: [String]) -> Command {

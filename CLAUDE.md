@@ -37,7 +37,9 @@ sudo cp .build/release/appstore-analytics /usr/local/bin/
 ```
 
 ### Testing
-Note: Currently no test suite exists. Tests would be added under `Tests/` directory.
+24 tests under `Tests/AppStoreAnalyticsCLITests/`, covering gzip decompression,
+Sales and Trends TSV parsing/aggregation, and report-period arithmetic. None hit
+the network.
 
 ```bash
 # Run tests (when implemented)
@@ -138,15 +140,48 @@ CSV downloads use parallel execution model:
 ## Important Implementation Notes
 
 ### API Integration Status
-The tool has **placeholder implementations** for API calls. The infrastructure is complete but actual API endpoints need implementation:
+All `APIClient` methods make real App Store Connect API calls through the SDK's
+`provider` (type `APIProvider`), which is configured with JWT authentication.
+Verified live against the account.
 
-- `APIClient.createReportRequest()` - Returns mock report ID
-- `APIClient.listReports()` - Returns empty array
-- `APIClient.getReportStatus()` - Returns `.processing`
-- `APIClient.getReportInstances()` - Returns empty array
-- `APIClient.getReportSegments()` - Returns empty array
+### Two data sources, and which one to trust
 
-When implementing real API calls, use the `provider` property (type `APIProvider`) which is already configured with JWT authentication.
+The CLI talks to two different App Store Connect APIs, and they answer different
+questions:
+
+- **Analytics reports** (`analyticsReportRequests` — `create-report`, `status`,
+  `download`) are aggregate product analytics. Apple applies a **privacy
+  threshold**: rows covering fewer than **five users or five unique devices are
+  omitted entirely**, and some reports are not generated at all below a minimum.
+  A handful of purchases is therefore invisible here — not zero, just withheld.
+  Never answer a revenue question from these.
+- **Sales and Trends** (`salesReports` — the `sales` command) is the transaction
+  record. It is exact, has no privacy threshold, and reports a single unit as a
+  single unit. This is the source for units and proceeds.
+
+Finance reports (`financeReports`) are a third source, exposed by the SDK but not
+yet wired up — they're the settled, invoice-level figures.
+
+### Sales and Trends specifics
+
+- **Vendor number is required and cannot be discovered.** The App Store Connect
+  API has no endpoint that returns it; it lives in App Store Connect under
+  Payments and Financial Reports. Stored as `vendor_number` in the config and
+  overridable with `--vendor-number`.
+- **Responses are gzipped TSV**, served as `Content-Type: application/a-gzip`.
+  URLSession does not inflate that automatically (it would for a
+  `Content-Encoding` response), so `CSVDownloader.decompressGzipIfNeeded` does
+  it. The SDK returns `Request<Data>` for these endpoints — no typed model.
+- **404 means "no report for that period"**, not an error. `fetchSalesReport`
+  returns nil so a loop over several periods keeps going.
+- **Only closed periods exist.** Requesting today's daily report, or the current
+  month, 404s. `SalesReportPeriod` computes the most recent *closed* period per
+  frequency, in UTC — a local calendar rolls the day at the wrong moment.
+- **`Developer Proceeds` is per unit.** A 2-unit row at 3.50 is 7.00; summing the
+  column alone undercounts revenue.
+- **Product Type Identifier** distinguishes in-app purchases (`IA*` — IA1, IAY,
+  IAC…) from app downloads (`1`, `1F`, `7`, `F1`…).
+- **Proceeds are per settlement currency** and are never summed across them.
 
 ### File Permissions Security
 The code enforces strict file permissions:
@@ -238,9 +273,13 @@ Reference documentation:
   "default_app_id": "YOUR_APP_ID",
   "default_output_dir": "./analytics-reports",
   "issuer_id": "YOUR_ISSUER_ID",
-  "private_key_path": "~/path/to/AuthKey_XXXXXXXXXX.p8"
+  "private_key_path": "~/path/to/AuthKey_XXXXXXXXXX.p8",
+  "vendor_number": "YOUR_VENDOR_NUMBER"
 }
 ```
+
+`vendor_number` is optional and only the `sales` command needs it; configs
+written before sales support existed decode fine without it.
 
 File is automatically created with 600 permissions by `ConfigManager`. The `default_app_id` is the app used by `create-report` when no `--app-id` flag is provided.
 
