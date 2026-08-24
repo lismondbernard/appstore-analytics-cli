@@ -137,6 +137,32 @@ CSV downloads use parallel execution model:
 - Directory structure: `{output-dir}/{report-id}/instance-{id}/segment-NNN.csv`
 - Optional merge functionality combines segments into single CSV
 
+### Never sum the downloaded CSVs
+
+`download` fetches **every** instance under a report request, and those instances
+overlap heavily. Summing the files inflates every count by three to five times.
+Two independent causes, both visible in any refresh directory:
+
+- **Three granularities of the same report.** Apple generates DAILY, WEEKLY
+  (Monday-bucketed) and MONTHLY (1st-of-month-bucketed) instances covering the
+  same events, plus rolling 3-day daily instances that re-state recent days. One
+  report type routinely has 40+ instances over the same span.
+- **"Standard" and "Detailed" are two cuts of one dataset**, not two datasets.
+  Detailed adds Source Info / Campaign / Page Title and carries heavier privacy
+  suppression. Adding them counts each event twice.
+
+The instance directory names carry no report name, so the report is identified
+by CSV header shape. `scripts/summarize-refresh.py` does all of this: Standard
+cut only, daily instances only (an instance is daily iff it holds two adjacent
+calendar dates — weekly and monthly buckets never do), one instance per date
+preferring the narrowest, which is Apple's freshest restatement.
+
+**Validate against Sales and Trends after any change to that logic.** The
+de-duplicated download counts land within ~2% of `sales` units for the same
+months; the naive sum is several times larger. That is the only external check
+available, and it is what caught the error in the first place (project-docs
+refreshes through Aug 4, 2026 were all inflated).
+
 ## Important Implementation Notes
 
 ### API Integration Status
