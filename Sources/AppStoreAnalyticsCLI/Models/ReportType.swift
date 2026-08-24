@@ -86,10 +86,25 @@ enum ReportType: String, CaseIterable {
     }
 }
 
-enum Granularity: String {
+enum Granularity: String, CaseIterable {
     case daily = "DAILY"
     case weekly = "WEEKLY"
     case monthly = "MONTHLY"
+
+    /// Parses a user-supplied `--granularity` value, tolerating case and
+    /// surrounding whitespace.
+    static func parse(_ value: String) -> Granularity? {
+        Granularity(rawValue: value.trimmingCharacters(in: .whitespacesAndNewlines).uppercased())
+    }
+
+    /// Whether an instance's granularity, as reported by the API, is this one.
+    ///
+    /// `APIClient` substitutes "UNKNOWN" when the attribute is missing, which
+    /// matches nothing — an instance of unknown granularity should not be
+    /// silently folded into a DAILY-only download.
+    func matches(instanceGranularity: String) -> Bool {
+        instanceGranularity.uppercased() == rawValue
+    }
 }
 
 enum ReportStatus: String, Codable {

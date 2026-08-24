@@ -6,7 +6,8 @@ struct DownloadCommand {
         outputDir: String?,
         merge: Bool,
         overwrite: Bool,
-        reportType: String? = nil
+        reportType: String? = nil,
+        granularity: String? = nil
     ) async throws {
         // Load configuration
         let config = try ConfigManager.shared.loadConfiguration()
@@ -15,9 +16,25 @@ struct DownloadCommand {
         let baseOutputDir = outputDir ?? config.defaultOutputDir
         let expandedOutputDir = UserInput.expandTildePath(baseOutputDir)
 
+        // Reject a bad granularity before spending any API calls on it.
+        var wantedGranularity: Granularity?
+        if let granularity = granularity {
+            guard let parsed = Granularity.parse(granularity) else {
+                Logger.error("Unknown granularity '\(granularity)'")
+                Logger.info("Valid values: \(Granularity.allCases.map(\.rawValue).joined(separator: ", "))")
+                throw NSError(domain: "DownloadCommand", code: 5, userInfo: [
+                    NSLocalizedDescriptionKey: "Invalid granularity"
+                ])
+            }
+            wantedGranularity = parsed
+        }
+
         Logger.info("Downloading report: \(reportRequestId)")
         if let reportType = reportType {
             Logger.info("Filtering by report type: \(reportType)")
+        }
+        if let wantedGranularity = wantedGranularity {
+            Logger.info("Filtering by granularity: \(wantedGranularity.rawValue)")
         }
 
         // Create API client
@@ -71,6 +88,28 @@ struct DownloadCommand {
             for name in matchedNames {
                 Logger.info("  - \(name)")
             }
+        }
+
+        // Filter by granularity if specified. Apple publishes DAILY, WEEKLY and
+        // MONTHLY instances of the same report, so an unfiltered download mixes
+        // three views of the same events — see "Never sum the downloaded CSVs"
+        // in CLAUDE.md. Picking one granularity is what makes the result
+        // summable.
+        if let wantedGranularity = wantedGranularity {
+            let filteredInstances = instances.filter {
+                wantedGranularity.matches(instanceGranularity: $0.granularity)
+            }
+            if filteredInstances.isEmpty {
+                Logger.error("No instances found with granularity '\(wantedGranularity.rawValue)'")
+                let available = Set(instances.map { $0.granularity }).sorted()
+                Logger.info("Granularities available in this selection: \(available.joined(separator: ", "))")
+                throw NSError(domain: "DownloadCommand", code: 6, userInfo: [
+                    NSLocalizedDescriptionKey: "No matching report instances"
+                ])
+            }
+            let dropped = instances.count - filteredInstances.count
+            instances = filteredInstances
+            Logger.ok("Filtered to \(instances.count) \(wantedGranularity.rawValue) instance(s), dropping \(dropped)")
         }
 
         guard !instances.isEmpty else {

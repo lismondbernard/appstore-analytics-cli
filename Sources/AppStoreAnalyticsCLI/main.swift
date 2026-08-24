@@ -42,13 +42,14 @@ struct AppStoreAnalyticsCLI {
                     format: format
                 )
 
-            case .download(let reportRequestId, let outputDir, let merge, let overwrite, let reportType):
+            case .download(let reportRequestId, let outputDir, let merge, let overwrite, let reportType, let granularity):
                 try await DownloadCommand.execute(
                     reportRequestId: reportRequestId,
                     outputDir: outputDir,
                     merge: merge,
                     overwrite: overwrite,
-                    reportType: reportType
+                    reportType: reportType,
+                    granularity: granularity
                 )
 
             case .status(let reportRequestId, let watch, let interval, let reportType):
@@ -143,6 +144,7 @@ struct AppStoreAnalyticsCLI {
         DOWNLOAD:
             appstore-analytics download <REPORT_REQUEST_ID> \\
                 [--report-type <REPORT_NAME>] \\
+                [--granularity DAILY|WEEKLY|MONTHLY] \\
                 [--output-dir <DIR>] \\
                 [--merge] \\
                 [--overwrite]
@@ -160,6 +162,12 @@ struct AppStoreAnalyticsCLI {
             same report plus rolling restatements of recent days, in both a
             Standard and a Detailed cut. Summing the CSVs triple-counts — see
             scripts/summarize-refresh.py.
+
+            --granularity keeps only one of those three views, which is what
+            makes a download summable. DAILY is the one to want; the rolling
+            restatements of recent days still overlap within it, so run the
+            result through scripts/summarize-refresh.py rather than adding the
+            files up directly.
 
         STATUS:
             appstore-analytics status <REPORT_REQUEST_ID> \\

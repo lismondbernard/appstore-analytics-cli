@@ -23,6 +23,13 @@ The resulting download counts agree with Sales and Trends -- the exact,
 unthresholded transaction record -- to within a couple of percent, which is the
 check to re-run whenever this logic changes.
 
+The adjacent-dates heuristic is a fallback for directories already on disk.
+`download --granularity DAILY` asks the API for its own answer, and the two
+agree exactly: on the Tennis Parent discovery report both select the same 35 of
+42 instances, 2,603 rows, 4,248 impressions. Prefer the flag for new pulls --
+this script still has to run afterwards, because the rolling restatements
+overlap *within* the daily granularity.
+
 Usage:  scripts/summarize-refresh.py analytics-reports/<refresh-dir> [SINCE]
 """
 import collections

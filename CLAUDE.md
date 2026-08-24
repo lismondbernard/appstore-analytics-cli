@@ -37,9 +37,9 @@ sudo cp .build/release/appstore-analytics /usr/local/bin/
 ```
 
 ### Testing
-41 tests under `Tests/AppStoreAnalyticsCLITests/`, covering gzip decompression,
-Sales and Trends TSV parsing/aggregation, report-period arithmetic, and report
-name matching. None hit the network.
+47 tests under `Tests/AppStoreAnalyticsCLITests/`, covering gzip decompression,
+Sales and Trends TSV parsing/aggregation, report-period arithmetic, report
+name matching, and granularity parsing. None hit the network.
 
 ```bash
 # Run tests (when implemented)
@@ -169,11 +169,20 @@ Two independent causes, both visible in any refresh directory:
   Detailed adds Source Info / Campaign / Page Title and carries heavier privacy
   suppression. Adding them counts each event twice.
 
+`download --granularity DAILY|WEEKLY|MONTHLY` removes the first cause at the
+source, filtering on the granularity the API reports for each instance. Use it
+on new pulls. It is not sufficient on its own: the rolling 3-day restatements
+are themselves DAILY, so they still overlap each other.
+
 The instance directory names carry no report name, so the report is identified
-by CSV header shape. `scripts/summarize-refresh.py` does all of this: Standard
-cut only, daily instances only (an instance is daily iff it holds two adjacent
+by CSV header shape. `scripts/summarize-refresh.py` does the rest: Standard cut
+only, daily instances only (an instance is daily iff it holds two adjacent
 calendar dates — weekly and monthly buckets never do), one instance per date
 preferring the narrowest, which is Apple's freshest restatement.
+
+That heuristic exists so the script also works on directories pulled without
+the flag. Where both apply they agree exactly — on the Tennis Parent discovery
+report each selects the same 35 of 42 instances, 2,603 rows, 4,248 impressions.
 
 **Validate against Sales and Trends after any change to that logic.** The
 de-duplicated download counts land within ~2% of `sales` units for the same
