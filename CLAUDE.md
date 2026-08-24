@@ -37,9 +37,10 @@ sudo cp .build/release/appstore-analytics /usr/local/bin/
 ```
 
 ### Testing
-47 tests under `Tests/AppStoreAnalyticsCLITests/`, covering gzip decompression,
+51 tests under `Tests/AppStoreAnalyticsCLITests/`, covering gzip decompression,
 Sales and Trends TSV parsing/aggregation, report-period arithmetic, report
-name matching, and granularity parsing. None hit the network.
+name matching, granularity parsing, and the download manifest. None hit the
+network.
 
 ```bash
 # Run tests (when implemented)
@@ -135,6 +136,8 @@ CSV downloads use parallel execution model:
 - Each report can have multiple instances
 - Each instance can have multiple segments
 - Directory structure: `{output-dir}/{report-id}/instance-{id}/segment-NNN.csv`
+- `{output-dir}/{report-id}/manifest.json` records what each instance directory
+  is — report name, category, granularity, processing date (see below)
 - Optional merge functionality combines segments into single CSV
 
 ### Two report vocabularies — don't cross them
@@ -174,15 +177,23 @@ source, filtering on the granularity the API reports for each instance. Use it
 on new pulls. It is not sufficient on its own: the rolling 3-day restatements
 are themselves DAILY, so they still overlap each other.
 
-The instance directory names carry no report name, so the report is identified
-by CSV header shape. `scripts/summarize-refresh.py` does the rest: Standard cut
-only, daily instances only (an instance is daily iff it holds two adjacent
-calendar dates — weekly and monthly buckets never do), one instance per date
-preferring the narrowest, which is Apple's freshest restatement.
+`download` also writes **`manifest.json`** next to the instance directories,
+recording each instance's report name, category and granularity. This matters
+because none of that is recoverable from the CSVs — the report can be guessed
+from the header shape, but granularity cannot: a single-date instance is
+identical whether it is one day of a DAILY report or one bucket of a WEEKLY one.
 
-That heuristic exists so the script also works on directories pulled without
-the flag. Where both apply they agree exactly — on the Tennis Parent discovery
-report each selects the same 35 of 42 instances, 2,603 rows, 4,248 impressions.
+`scripts/summarize-refresh.py` reads the manifest and does the rest: Standard
+cut only, DAILY instances only, one instance per date preferring the narrowest,
+which is Apple's freshest restatement.
+
+Without a manifest the script falls back to asking whether an instance holds two
+adjacent calendar dates. **That fallback undercounts** — it discards single-date
+DAILY instances, which on sparse reports are frequently the only source for a
+date. It cost 3 of Tennis Parent's 17 downloads (both August ones) and 6 of
+Foreign Words TV's 11 August first-time downloads. It is exact only on dense
+reports, where every date also appears in a multi-date instance; all three apps'
+discovery figures were identical either way. Re-pull rather than trust it.
 
 **Validate against Sales and Trends after any change to that logic.** The
 de-duplicated download counts land within ~2% of `sales` units for the same

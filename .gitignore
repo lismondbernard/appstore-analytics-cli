@@ -43,3 +43,6 @@ Package.resolved
 .coverage
 *.profraw
 *.profdata
+
+# Python bytecode from scripts/
+__pycache__/

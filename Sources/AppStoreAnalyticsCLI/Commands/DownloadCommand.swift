@@ -123,6 +123,7 @@ struct DownloadCommand {
 
         // Process each instance
         var allDownloadedPaths: [String] = []
+        var downloadedInstances: [AnalyticsReportInstance] = []
 
         var skippedCount = 0
 
@@ -168,6 +169,7 @@ struct DownloadCommand {
             )
 
             allDownloadedPaths.append(contentsOf: downloadedPaths)
+            downloadedInstances.append(instance)
 
             // Merge if requested and multiple segments
             if merge && downloadedPaths.count > 1 {
@@ -184,6 +186,17 @@ struct DownloadCommand {
             Logger.info("\nNote: \(skippedCount) expired instance(s) were skipped")
         }
 
+        // Record what each instance directory actually is. The layout on disk
+        // says nothing about report name or granularity, and neither can be
+        // recovered from the CSVs: a single-date instance looks identical
+        // whether it is one day of a DAILY report or one bucket of a WEEKLY
+        // one. Anything summing these files has to know the difference.
+        try writeManifest(
+            instances: downloadedInstances,
+            directory: "\(expandedOutputDir)/\(reportRequestId)",
+            requestId: reportRequestId
+        )
+
         // Summary
         Logger.success("\nDownload complete!")
         Logger.info("Total files downloaded: \(allDownloadedPaths.count)")
@@ -191,6 +204,40 @@ struct DownloadCommand {
 
         // Show file tree
         displayFileTree(directory: "\(expandedOutputDir)/\(reportRequestId)")
+    }
+
+    /// Writes `manifest.json` alongside the instance directories, mapping each
+    /// `instance-<id>` to the report it belongs to and the granularity Apple
+    /// assigned it.
+    ///
+    /// Written on every download, including filtered ones, so the file always
+    /// describes what is actually on disk rather than what exists upstream.
+    private static func writeManifest(
+        instances: [AnalyticsReportInstance],
+        directory: String,
+        requestId: String
+    ) throws {
+        guard !instances.isEmpty else { return }
+
+        let manifest = DownloadManifest(
+            reportRequestId: requestId,
+            instances: instances.map {
+                DownloadManifest.Entry(
+                    instanceId: $0.id,
+                    directory: "instance-\($0.id)",
+                    reportName: $0.reportName,
+                    reportCategory: $0.reportCategory,
+                    granularity: $0.granularity,
+                    processingDate: $0.processingDate
+                )
+            }.sorted { $0.instanceId < $1.instanceId }
+        )
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        let path = "\(directory)/manifest.json"
+        try encoder.encode(manifest).write(to: URL(fileURLWithPath: path))
+        Logger.ok("Wrote manifest: \(path)")
     }
 
     private static func displayFileTree(directory: String) {

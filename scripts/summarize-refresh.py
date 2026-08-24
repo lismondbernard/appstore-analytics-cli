@@ -11,30 +11,38 @@ the Detailed one carrying extra columns and heavier privacy suppression.
 Summing the downloaded CSVs therefore counts most events three to five times.
 This script instead:
 
-  * identifies the report from the CSV header shape (the download layout does
-    not record report names),
-  * keeps only DAILY instances -- an instance is daily iff it contains two
-    adjacent calendar dates, which weekly and monthly buckets never do,
+  * identifies the report from the CSV header shape,
+  * keeps only DAILY instances,
   * assigns each date to exactly one instance, preferring the narrowest one
     (Apple's rolling 3-day instances are the freshest restatement of a day), and
   * reports the Standard cut only, since Detailed re-slices the same events.
 
+Granularity is read from `manifest.json`, which `download` writes next to the
+instance directories. Without a manifest the script falls back to asking whether
+an instance holds two adjacent calendar dates, which weekly and monthly buckets
+never do.
+
+**That fallback undercounts, so prefer a manifest.** It discards single-date
+DAILY instances, and on sparse reports those are frequently the only source for
+a date: it lost 3 of Tennis Parent's 17 downloads (including both August ones)
+and 6 of Foreign Words TV's 11 August first-time downloads. It is only exact on
+dense reports, where every date also appears in a multi-date instance -- all
+three apps' discovery numbers are identical either way.
+
+Filtering the pull with `download --granularity DAILY` is not a substitute: the
+rolling restatements overlap *within* the daily granularity, so this script
+still has to run afterwards.
+
 The resulting download counts agree with Sales and Trends -- the exact,
 unthresholded transaction record -- to within a couple of percent, which is the
 check to re-run whenever this logic changes.
-
-The adjacent-dates heuristic is a fallback for directories already on disk.
-`download --granularity DAILY` asks the API for its own answer, and the two
-agree exactly: on the Tennis Parent discovery report both select the same 35 of
-42 instances, 2,603 rows, 4,248 impressions. Prefer the flag for new pulls --
-this script still has to run afterwards, because the rolling restatements
-overlap *within* the daily granularity.
 
 Usage:  scripts/summarize-refresh.py analytics-reports/<refresh-dir> [SINCE]
 """
 import collections
 import csv
 import datetime
+import json
 import os
 import sys
 
@@ -104,21 +112,41 @@ def scan(root):
     return found
 
 
+def load_granularities(root):
+    """instance id -> granularity, from any manifest.json under `root`."""
+    granularities = {}
+    for dirpath, _, files in os.walk(root):
+        if "manifest.json" not in files:
+            continue
+        with open(os.path.join(dirpath, "manifest.json"), encoding="utf-8") as handle:
+            for entry in json.load(handle).get("instances", []):
+                granularities[entry["instance_id"]] = entry.get("granularity", "UNKNOWN")
+    return granularities
+
+
 def is_daily(dates):
-    """Daily instances hold adjacent days; weekly and monthly buckets never do."""
+    """Fallback when no manifest says so: daily instances hold adjacent days.
+
+    Weekly and monthly buckets never do — but neither does a DAILY instance
+    covering a single date, so this undercounts sparse reports. See the module
+    docstring.
+    """
     parsed = sorted(datetime.date.fromisoformat(d) for d in dates if d)
     return any((b - a).days == 1 for a, b in zip(parsed, parsed[1:]))
 
 
-def daily_rows(instances):
+def daily_rows(instances, granularities=None):
     """Rows from daily instances, each date owned by the narrowest instance."""
+    granularities = granularities or {}
     candidates = []
     for instance, rows in instances.items():
         if not rows:
             continue
         column = date_column(rows)
         dates = {r[column] for r in rows if r.get(column)}
-        if is_daily(dates):
+        declared = granularities.get(instance)
+        keep = declared == "DAILY" if declared else is_daily(dates)
+        if keep:
             candidates.append((len(dates), instance, dates, rows, column))
     candidates.sort()
 
@@ -171,18 +199,26 @@ def main():
     root = sys.argv[1]
     since = sys.argv[2] if len(sys.argv) > 2 else None
     reports = scan(root)
+    granularities = load_granularities(root)
 
     print(f"{root} — de-duplicated daily view"
           + (f", plus a window since {since}" if since else ""))
+    if granularities:
+        print(f"granularity: from manifest.json ({len(granularities)} instances)")
+    else:
+        print("granularity: NO MANIFEST — inferred from adjacent dates, which "
+              "undercounts sparse reports. Re-pull to get a manifest.")
 
     for report in sorted(reports):
         instances = reports[report]
-        rows = daily_rows(instances)
-        skipped = len(instances) - len({r_id for r_id, r in instances.items()
-                                        if is_daily({x.get(date_column(r), "") for x in r})})
+        rows = daily_rows(instances, granularities)
+        kept = {i for i, r in instances.items()
+                if (granularities.get(i) == "DAILY" if granularities.get(i)
+                    else is_daily({x.get(date_column(r), "") for x in r}))}
+        skipped = len(instances) - len(kept)
         low, high, days = span(rows)
-        print(f"\n## {report}: {len(rows)} rows from daily instances "
-              f"({skipped} weekly/monthly instance(s) skipped), {low}..{high} ({days} days)")
+        print(f"\n## {report}: {len(rows)} rows from {len(kept)} daily instance(s) "
+              f"({skipped} non-daily skipped), {low}..{high} ({days} days)")
         if not rows:
             continue
 
