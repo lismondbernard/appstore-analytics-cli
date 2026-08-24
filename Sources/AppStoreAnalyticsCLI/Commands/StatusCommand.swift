@@ -43,12 +43,11 @@ struct StatusCommand {
 
         if !result.reports.isEmpty {
             let filteredReports: [AnalyticsReport]
-            if let reportType = reportType,
-               let knownType = ReportType(rawValue: reportType) {
-                let targetName = knownType.displayName.lowercased()
-                // Use contains for partial matching (e.g., "App Installs" matches "Platform App Installs")
+            if let reportType = reportType {
+                // Matched against the names the API returns, which is what the
+                // unfiltered branch below prints — not against ReportType.
                 filteredReports = result.reports.filter {
-                    $0.name.lowercased().contains(targetName) || targetName.contains($0.name.lowercased())
+                    ReportNameFilter.matches($0.name, filter: reportType)
                 }
                 if filteredReports.isEmpty {
                     Logger.info("No reports matching type '\(reportType)' found in this request")

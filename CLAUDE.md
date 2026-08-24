@@ -37,9 +37,9 @@ sudo cp .build/release/appstore-analytics /usr/local/bin/
 ```
 
 ### Testing
-24 tests under `Tests/AppStoreAnalyticsCLITests/`, covering gzip decompression,
-Sales and Trends TSV parsing/aggregation, and report-period arithmetic. None hit
-the network.
+41 tests under `Tests/AppStoreAnalyticsCLITests/`, covering gzip decompression,
+Sales and Trends TSV parsing/aggregation, report-period arithmetic, and report
+name matching. None hit the network.
 
 ```bash
 # Run tests (when implemented)
@@ -136,6 +136,24 @@ CSV downloads use parallel execution model:
 - Each instance can have multiple segments
 - Directory structure: `{output-dir}/{report-id}/instance-{id}/segment-NNN.csv`
 - Optional merge functionality combines segments into single CSV
+
+### Two report vocabularies — don't cross them
+
+`ReportType` (`APP_STORE_PRODUCT_PAGE_VIEWS`, `APP_UNITS`, …) names the older
+catalogue that `create-report` and `list-report-types` use. The Analytics API
+returns a *different* set of names on each report and instance — "App Store
+Discovery and Engagement Standard", "App Downloads Standard", "Platform App
+Installs". The two never overlap.
+
+`--report-type` on `download` and `status` matches the API's names, via
+`ReportNameFilter`: case- and whitespace-insensitive substring, so `discovery`
+selects both cuts and a full name selects one report. `download` treats a
+no-match as an error and lists what is available, because silently downloading
+all 100+ instances when a filter was requested is the worse failure. Both
+commands previously gated the filter on `ReportType(rawValue:)` succeeding,
+which meant a real report name skipped filtering entirely.
+
+Use `status <ID>` to discover the names under a request before filtering.
 
 ### Never sum the downloaded CSVs
 

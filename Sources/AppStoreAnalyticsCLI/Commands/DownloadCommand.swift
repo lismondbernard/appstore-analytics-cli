@@ -47,13 +47,12 @@ struct DownloadCommand {
         Logger.info("Fetching report instances...")
         var instances = try await apiClient.getReportInstances(requestId: reportRequestId)
 
-        // Filter by report type if specified
-        if let reportType = reportType,
-           let knownType = ReportType(rawValue: reportType) {
-            let targetName = knownType.displayName.lowercased()
-            let filteredInstances = instances.filter { instance in
-                guard let name = instance.reportName?.lowercased() else { return false }
-                return name.contains(targetName) || targetName.contains(name)
+        // Filter by report name if specified. A no-match is an error rather
+        // than a silent full download — getting every instance when you asked
+        // for one report is worse than being told the name was wrong.
+        if let reportType = reportType {
+            let filteredInstances = instances.filter {
+                ReportNameFilter.matches($0.reportName, filter: reportType)
             }
             if filteredInstances.isEmpty {
                 Logger.error("No instances found matching report type '\(reportType)'")
@@ -67,7 +66,11 @@ struct DownloadCommand {
                 ])
             }
             instances = filteredInstances
-            Logger.ok("Filtered to \(instances.count) instance(s) matching '\(knownType.displayName)'")
+            let matchedNames = Set(instances.compactMap { $0.reportName }).sorted()
+            Logger.ok("Filtered to \(instances.count) instance(s) across \(matchedNames.count) report(s):")
+            for name in matchedNames {
+                Logger.info("  - \(name)")
+            }
         }
 
         guard !instances.isEmpty else {

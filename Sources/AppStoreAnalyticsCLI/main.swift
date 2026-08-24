@@ -142,14 +142,28 @@ struct AppStoreAnalyticsCLI {
 
         DOWNLOAD:
             appstore-analytics download <REPORT_REQUEST_ID> \\
-                [--report-type <REPORT_TYPE>] \\
+                [--report-type <REPORT_NAME>] \\
                 [--output-dir <DIR>] \\
                 [--merge] \\
                 [--overwrite]
 
+            --report-type matches Apple's own report names, case-insensitively
+            and on any substring: 'App Downloads Standard' selects one report,
+            'discovery' selects both the Standard and Detailed cuts. Run
+            'status <ID>' to list the names available under a request. These
+            names are unrelated to the REPORT TYPES listed further down, which
+            name the older catalogue used by create-report. A name that matches
+            nothing is an error, not an unfiltered download.
+
+            Downloading without a filter fetches every instance, and those
+            overlap: Apple emits DAILY, WEEKLY and MONTHLY instances of the
+            same report plus rolling restatements of recent days, in both a
+            Standard and a Detailed cut. Summing the CSVs triple-counts — see
+            scripts/summarize-refresh.py.
+
         STATUS:
             appstore-analytics status <REPORT_REQUEST_ID> \\
-                [--report-type <REPORT_TYPE>] \\
+                [--report-type <REPORT_NAME>] \\
                 [--watch] \\
                 [--interval <SECONDS>]
 
