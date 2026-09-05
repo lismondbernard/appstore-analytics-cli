@@ -3,7 +3,7 @@ import Foundation
 enum Command {
     case configure(issuerId: String?, keyId: String?, privateKeyPath: String?, appId: String?, vendorNumbers: [String])
     case createReport(reportType: String, startDate: String, endDate: String, granularity: String, wait: Bool, download: Bool, accessType: String, appId: String?)
-    case listReports(category: String?, status: String?, format: String)
+    case listReports(category: String?, status: String?, format: String, appId: String?)
     case download(reportRequestId: String, outputDir: String?, merge: Bool, overwrite: Bool, reportType: String?, granularity: String?)
     case status(reportRequestId: String, watch: Bool, interval: Int, reportType: String?)
     case deleteReport(reportRequestId: String)
@@ -45,7 +45,22 @@ enum Command {
         }
     }
 
-    private static func parseConfigureCommand(args: [String]) -> Command {
+    /// Reports an unrecognized `--flag` so a typo or an unimplemented option
+    /// fails loudly instead of being silently dropped.
+    ///
+    /// Every parser below used to end in a bare `default: break`, which meant an
+    /// unknown flag was indistinguishable from one the command honors. That is
+    /// how `list-reports --app-id` returned the *default* app's reports while
+    /// appearing to accept the override (SSS-98). Only tokens that look like
+    /// flags are rejected; positional arguments still fall through untouched.
+    private static func rejectUnknownOption(_ token: String, command: String) -> Bool {
+        guard token.hasPrefix("-") else { return false }
+        Logger.error("Unknown option '\(token)' for '\(command)'")
+        Logger.info("Run 'appstore-analytics help' to see the supported options.")
+        return true
+    }
+
+    private static func parseConfigureCommand(args: [String]) -> Command? {
         var issuerId: String?
         var keyId: String?
         var privateKeyPath: String?
@@ -76,7 +91,7 @@ enum Command {
                 i += 1
                 if i < args.count { appId = args[i] }
             default:
-                break
+                if rejectUnknownOption(args[i], command: "configure") { return nil }
             }
             i += 1
         }
@@ -128,7 +143,7 @@ enum Command {
             case "--download":
                 download = true
             default:
-                break
+                if rejectUnknownOption(args[i], command: "create-report") { return nil }
             }
             i += 1
         }
@@ -165,10 +180,11 @@ enum Command {
         )
     }
 
-    private static func parseListReportsCommand(args: [String]) -> Command {
+    private static func parseListReportsCommand(args: [String]) -> Command? {
         var category: String?
         var status: String?
         var format: String = "table"
+        var appId: String?
 
         var i = 0
         while i < args.count {
@@ -182,13 +198,16 @@ enum Command {
             case "--format":
                 i += 1
                 if i < args.count { format = args[i] }
+            case "--app-id":
+                i += 1
+                if i < args.count { appId = args[i] }
             default:
-                break
+                if rejectUnknownOption(args[i], command: "list-reports") { return nil }
             }
             i += 1
         }
 
-        return .listReports(category: category, status: status, format: format)
+        return .listReports(category: category, status: status, format: format, appId: appId)
     }
 
     private static func parseDownloadCommand(args: [String]) -> Command? {
@@ -219,7 +238,7 @@ enum Command {
                 i += 1
                 if i < args.count { granularity = args[i] }
             default:
-                break
+                if rejectUnknownOption(args[i], command: "download") { return nil }
             }
             i += 1
         }
@@ -257,7 +276,7 @@ enum Command {
                 i += 1
                 if i < args.count { reportType = args[i] }
             default:
-                break
+                if rejectUnknownOption(args[i], command: "status") { return nil }
             }
             i += 1
         }
@@ -269,10 +288,13 @@ enum Command {
         guard let reportRequestId = args.first else {
             return nil
         }
+        for token in args.dropFirst() {
+            if rejectUnknownOption(token, command: "delete-report") { return nil }
+        }
         return .deleteReport(reportRequestId: reportRequestId)
     }
 
-    private static func parseSalesCommand(args: [String]) -> Command {
+    private static func parseSalesCommand(args: [String]) -> Command? {
         var vendorNumbers: [String] = []
         var frequency = "MONTHLY"
         var reportDate: String?
@@ -317,7 +339,7 @@ enum Command {
                 i += 1
                 if i < args.count { outputPath = args[i] }
             default:
-                break
+                if rejectUnknownOption(args[i], command: "sales") { return nil }
             }
             i += 1
         }
@@ -334,7 +356,7 @@ enum Command {
         )
     }
 
-    private static func parseListReportTypesCommand(args: [String]) -> Command {
+    private static func parseListReportTypesCommand(args: [String]) -> Command? {
         var category: String?
 
         var i = 0
@@ -344,7 +366,7 @@ enum Command {
                 i += 1
                 if i < args.count { category = args[i] }
             default:
-                break
+                if rejectUnknownOption(args[i], command: "list-report-types") { return nil }
             }
             i += 1
         }

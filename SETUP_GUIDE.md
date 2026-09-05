@@ -287,9 +287,11 @@ appstore-analytics download report-abc12345 --overwrite
 
 ### Discovery Reports
 - `APP_STORE_PRODUCT_PAGE_VIEWS` - Product page impressions and views
-- `APP_STORE_SEARCH_TERMS` - Search terms used to find your app
 - `APP_IMPRESSIONS` - Times your app appeared in results
 - `APP_STORE_REFERRERS` - Sources that drove traffic to your page
+
+There is no organic search-terms report; Apple does not expose search query text
+through this API. Apple Search Ads is the only first-party source.
 
 ### Commerce Reports
 - `APP_UNITS` - App downloads and redownloads

@@ -4,7 +4,8 @@ struct ListReportsCommand {
     static func execute(
         category: String?,
         status: String?,
-        format: String
+        format: String,
+        appId: String?
     ) async throws {
         // Load configuration
         let config = try ConfigManager.shared.loadConfiguration()
@@ -37,10 +38,19 @@ struct ListReportsCommand {
         // Create API client
         let apiClient = try APIClient(configuration: config)
 
+        // Resolve the target app the same way create-report does, and say which
+        // one was used: silently falling back to the default is how this command
+        // handed back another app's report requests (SSS-98).
+        let resolvedAppId = appId ?? config.defaultAppId
+        if format != "json" {
+            Logger.info("App ID: \(resolvedAppId)\(appId != nil ? " (override)" : " (from config)")")
+        }
+
         // Fetch reports
         let reports = try await apiClient.listReports(
             category: category,
-            status: status
+            status: status,
+            appId: resolvedAppId
         )
 
         // Display reports

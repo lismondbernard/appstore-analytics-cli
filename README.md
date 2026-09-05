@@ -163,13 +163,18 @@ List available reports with optional filtering.
 appstore-analytics list-reports \
   [--category discovery|commerce|usage|performance] \
   [--status created|processing|completed|failed] \
-  [--format table|json]
+  [--format table|json] \
+  [--app-id <APP_ID>]
 ```
 
 **Options:**
 - `--category`: Filter by report category
 - `--status`: Filter by report status
 - `--format`: Output format (default: table)
+- `--app-id`: List another app's report requests instead of the configured default
+
+Report requests belong to an app, so this command is app-scoped. The resolved app
+ID is echoed in the table output, marked `(override)` or `(from config)`.
 
 ### download
 
@@ -226,37 +231,53 @@ appstore-analytics list-report-types [--category <CATEGORY>]
 
 ## Report Types
 
-### Discovery
-- `APP_STORE_PRODUCT_PAGE_VIEWS` - App Store Product Page Views
-- `APP_STORE_SEARCH_TERMS` - App Store Search Terms
-- `APP_IMPRESSIONS` - App Impressions
-- `APP_STORE_REFERRERS` - App Store Referrers
-- `APP_STORE_TOTAL_PAGE_VIEWS` - App Store Total Page Views
+> **Audited against a live `status` listing on 2026-09-05 (Foreign Words ONGOING
+> request, 156 report types). None of the `UPPER_SNAKE_CASE` names below appear in
+> Apple's response.** They are a legacy request vocabulary this CLI accepts and
+> validates; they are not what you get back, and `create-report --report-type` does
+> not restrict anything (Apple generates every report type per request regardless).
+> Treat the list as historical and use `status <REPORT_REQUEST_ID>` for the real names.
 
-### Commerce
-- `APP_UNITS` - App Units
-- `APP_SALES` - App Sales
-- `APP_PROCEEDS` - App Proceeds
-- `PAYING_USERS` - Paying Users
-- `APP_PURCHASES` - App Purchases
+### What the API actually returns
 
-### Usage
-- `APP_SESSIONS` - App Sessions
-- `APP_INSTALLS` - App Installs
-- `APP_USAGE` - App Usage
-- `ACTIVE_DEVICES` - Active Devices
-- `ACTIVE_LAST_30_DAYS` - Active Last 30 Days
+Apple names reports in human-readable form and groups them under five categories.
+Counts are from the 2026-09-05 audit:
 
-### Performance
-- `APP_CRASHES` - App Crashes
-- `APP_PERFORMANCE` - App Performance
+| Category | Count | Examples |
+|---|---|---|
+| `FRAMEWORK_USAGE` | 103 | Home Screen Widget Usage, PhotoKit Imports, Metal Command Queues |
+| `PERFORMANCE` | 23 | CAMetalLayer Performance, Networking Connection Activity |
+| `APP_USAGE` | 15 | App Sessions Standard/Detailed, App Crashes, App Store Installation and Deletion |
+| `COMMERCE` | 10 | App Downloads Standard/Detailed, App Store Purchases, App Store Subscription Event Report |
+| `APP_STORE_ENGAGEMENT` | 5 | App Store Discovery and Engagement Standard/Detailed, App Store Web Preview Engagement |
 
-### Subscriptions
-- `SUBSCRIPTION_EVENTS` - Subscription Events
-- `SUBSCRIBER_ACTIVITY` - Subscriber Activity
-- `SUBSCRIPTION_RETENTION` - Subscription Retention
+Most reports ship in a `Standard` and a `Detailed` cut. Pass these names to
+`download --report-type`, which matches case-insensitively on any substring.
 
-You can also run `appstore-analytics list-report-types` to see this list. See [Apple's documentation](https://developer.apple.com/documentation/appstoreconnectapi/analytics) for more details.
+Note the mismatch with this CLI's own `--category` vocabulary (discovery,
+engagement, commerce, usage, performance, subscriptions): there is no `discovery`
+or `subscriptions` category in the API, and `FRAMEWORK_USAGE`, which is two thirds
+of everything available, has no representation here at all.
+
+**There is no organic search-terms report.** The live listing contains nothing
+search-related (the sole "search" hit is Visual Intelligence Image Search Usage, a
+framework metric). The closest real report, App Store Discovery and Engagement
+Detailed, leaves `Source Info` empty on every "App Store search" row; only App and
+Web referrer rows populate it. Apple Search Ads is the only first-party source of
+search-term text.
+
+### Legacy request vocabulary
+
+Accepted by `create-report --report-type` and listed by `list-report-types`. Kept
+for backward compatibility; see the caveat above before relying on any of it.
+
+**Discovery:** `APP_STORE_PRODUCT_PAGE_VIEWS`, `APP_IMPRESSIONS`, `APP_STORE_REFERRERS`, `APP_STORE_TOTAL_PAGE_VIEWS`
+**Commerce:** `APP_UNITS`, `APP_SALES`, `APP_PROCEEDS`, `PAYING_USERS`, `APP_PURCHASES`
+**Usage:** `APP_SESSIONS`, `APP_INSTALLS`, `APP_USAGE`, `ACTIVE_DEVICES`, `ACTIVE_LAST_30_DAYS`
+**Performance:** `APP_CRASHES`, `APP_PERFORMANCE`
+**Subscriptions:** `SUBSCRIPTION_EVENTS`, `SUBSCRIBER_ACTIVITY`, `SUBSCRIPTION_RETENTION`
+
+See [Apple's documentation](https://developer.apple.com/documentation/appstoreconnectapi/analytics) for more details.
 
 ## Examples
 
@@ -290,7 +311,9 @@ appstore-analytics list-report-types --category commerce
 
 ### Multi-App Workflow
 
-Track multiple apps from a single config by passing `--app-id` to `create-report`. The override takes precedence over `default_app_id` and is only needed at report-creation time — subsequent `download`/`status`/`list-reports`/`delete-report` calls operate by report ID and are app-agnostic.
+Track multiple apps from a single config by passing `--app-id` to `create-report` or `list-reports`. The override takes precedence over `default_app_id`.
+
+`download`, `status` and `delete-report` take an explicit report request ID and are genuinely app-agnostic. `list-reports` is **not**: report requests belong to an app, and it is how you discover the request ID for one. Pass `--app-id` there or you get the default app's requests.
 
 ```bash
 # Create an ONGOING report for a different app than the configured default

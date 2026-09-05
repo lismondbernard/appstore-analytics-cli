@@ -35,11 +35,12 @@ struct AppStoreAnalyticsCLI {
                     appId: appId
                 )
 
-            case .listReports(let category, let status, let format):
+            case .listReports(let category, let status, let format, let appId):
                 try await ListReportsCommand.execute(
                     category: category,
                     status: status,
-                    format: format
+                    format: format,
+                    appId: appId
                 )
 
             case .download(let reportRequestId, let outputDir, let merge, let overwrite, let reportType, let granularity):
@@ -139,7 +140,12 @@ struct AppStoreAnalyticsCLI {
             appstore-analytics list-reports \\
                 [--category discovery|commerce|usage|performance] \\
                 [--status created|processing|completed|failed] \\
-                [--format table|json]
+                [--format table|json] \\
+                [--app-id <APP_ID>]
+
+            Report requests belong to an app, so this lists the requests for the
+            configured default app unless --app-id names another. The chosen app
+            is echoed in the output.
 
         DOWNLOAD:
             appstore-analytics download <REPORT_REQUEST_ID> \\
@@ -207,10 +213,21 @@ struct AppStoreAnalyticsCLI {
             Categories: discovery, commerce, usage, performance, subscriptions
 
         REPORT TYPES:
+            Legacy request vocabulary. Audited 2026-09-05 against a live request:
+            none of these names appear in Apple's 156 actual report types, and
+            create-report generates every type regardless of what is passed here.
+            Run 'status <ID>' for the real names, then use them with
+            'download --report-type'. Apple's real categories are
+            FRAMEWORK_USAGE, PERFORMANCE, APP_USAGE, COMMERCE and
+            APP_STORE_ENGAGEMENT.
+
             Discovery:
               APP_STORE_PRODUCT_PAGE_VIEWS    APP_IMPRESSIONS
-              APP_STORE_SEARCH_TERMS          APP_STORE_REFERRERS
-              APP_STORE_TOTAL_PAGE_VIEWS
+              APP_STORE_REFERRERS             APP_STORE_TOTAL_PAGE_VIEWS
+
+            There is no organic search-terms report. Apple does not expose search
+            query text through the Analytics Reports API; Apple Search Ads is the
+            only first-party source.
 
             Commerce:
               APP_UNITS          APP_SALES           APP_PROCEEDS

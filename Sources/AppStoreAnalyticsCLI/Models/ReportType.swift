@@ -11,8 +11,14 @@ enum ReportCategory: String, CaseIterable {
 
 enum ReportType: String, CaseIterable {
     // Discovery Reports
+    //
+    // There is deliberately no search-terms case. Apple's Analytics Reports API
+    // exposes no organic search-query report: the closest real report, App Store
+    // Discovery and Engagement Detailed, leaves `Source Info` empty on every
+    // "App Store search" row. Apple Search Ads is the only first-party source of
+    // search-term text. Listing one here sent people down a path the API cannot
+    // deliver (SSS-98).
     case appStoreProductPageViews = "APP_STORE_PRODUCT_PAGE_VIEWS"
-    case appStoreSearchTerms = "APP_STORE_SEARCH_TERMS"
     case appImpressions = "APP_IMPRESSIONS"
     case appStoreReferrers = "APP_STORE_REFERRERS"
     case appStoreTotalPageViews = "APP_STORE_TOTAL_PAGE_VIEWS"
@@ -42,7 +48,7 @@ enum ReportType: String, CaseIterable {
 
     var category: ReportCategory {
         switch self {
-        case .appStoreProductPageViews, .appStoreSearchTerms, .appImpressions,
+        case .appStoreProductPageViews, .appImpressions,
              .appStoreReferrers, .appStoreTotalPageViews:
             return .discovery
 
@@ -63,7 +69,6 @@ enum ReportType: String, CaseIterable {
     var displayName: String {
         switch self {
         case .appStoreProductPageViews: return "App Store Product Page Views"
-        case .appStoreSearchTerms: return "App Store Search Terms"
         case .appImpressions: return "App Impressions"
         case .appStoreReferrers: return "App Store Referrers"
         case .appStoreTotalPageViews: return "App Store Total Page Views"

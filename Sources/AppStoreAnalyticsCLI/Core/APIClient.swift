@@ -104,13 +104,19 @@ actor APIClient {
     /// List all analytics reports for the configured app
     func listReports(
         category: String? = nil,
-        status: String? = nil
+        status: String? = nil,
+        appId: String? = nil
     ) async throws -> [AnalyticsReportRequest] {
         try await rateLimiter.acquirePermit()
 
+        // An explicit appId wins over the configured default, matching
+        // createReportRequest. Reading defaultAppId unconditionally here is what
+        // made `list-reports --app-id` return another app's requests (SSS-98).
+        let resolvedAppId = appId ?? configuration.defaultAppId
+
         Logger.info("Fetching analytics reports...")
 
-        let request = APIEndpoint.v1.apps.id(configuration.defaultAppId)
+        let request = APIEndpoint.v1.apps.id(resolvedAppId)
             .analyticsReportRequests.get(parameters: .init(
                 fieldsAnalyticsReportRequests: [.accessType, .stoppedDueToInactivity, .reports],
                 limit: 200
