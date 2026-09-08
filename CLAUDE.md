@@ -2,14 +2,6 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Project Overview
-
-App Store Analytics CLI - A command-line tool for interacting with Apple's App Store Connect Analytics API. Enables programmatic creation, monitoring, and downloading of analytics reports for iOS apps.
-
-**Language:** Swift 5.9+
-**Platform:** macOS 13.0+ (Ventura)
-**Primary Dependency:** AppStoreConnect-Swift-SDK v4.0.0+
-
 ## Build and Run Commands
 
 ### Toolchain
@@ -21,79 +13,7 @@ swiftly use xcode   # creates/updates .swift-version → "xcode"
 
 The repo's `.swift-version` file pins this project to the active Xcode toolchain for any contributor using swiftly. Alternatives: `swiftly install latest && swiftly use latest`, or prefix commands with `xcrun` to bypass swiftly.
 
-### Building
-```bash
-# Debug build
-swift build
-
-# Release build
-swift build -c release
-
-# Run directly (development)
-swift run appstore-analytics <command>
-
-# Install to /usr/local/bin
-sudo cp .build/release/appstore-analytics /usr/local/bin/
-```
-
-### Testing
-51 tests under `Tests/AppStoreAnalyticsCLITests/`, covering gzip decompression,
-Sales and Trends TSV parsing/aggregation, report-period arithmetic, report
-name matching, granularity parsing, and the download manifest. None hit the
-network.
-
-```bash
-# Run tests (when implemented)
-swift test
-
-# Run specific test
-swift test --filter <TestName>
-```
-
-### Development Commands
-```bash
-# Clean build artifacts
-swift package clean
-
-# Update dependencies
-swift package update
-
-# Show resolved dependencies
-swift package show-dependencies
-```
-
 ## Architecture Overview
-
-### Command Pattern Architecture
-The CLI uses a command-based architecture with clear separation of concerns:
-
-- **Commands Layer** (`Sources/AppStoreAnalyticsCLI/Commands/`)
-  - Each command is a separate file with static `execute()` method
-  - Command routing happens in `Command.swift` enum via argument parsing
-  - `main.swift` dispatches to appropriate command based on parsed arguments
-
-- **Core Layer** (`Sources/AppStoreAnalyticsCLI/Core/`)
-  - `APIClient`: Actor-based wrapper around AppStoreConnect-Swift-SDK
-  - `JWTManager`: Actor managing JWT token lifecycle (18-min refresh cycle)
-  - `ConfigManager`: Singleton for config file I/O with secure permissions
-  - `RateLimiter`: Token bucket algorithm enforcing API rate limits
-  - `CSVDownloader`: Parallel download manager with progress tracking
-
-- **Models Layer** (`Sources/AppStoreAnalyticsCLI/Models/`)
-  - `Configuration`: User config stored in `~/.appstore-analytics-config.json`
-  - `ReportType`: 20+ report types across 5 categories (discovery, commerce, usage, performance, subscriptions)
-  - `ReportRequest`: API request/response models
-
-- **Utilities Layer** (`Sources/AppStoreAnalyticsCLI/Utilities/`)
-  - `Logger`: Formatted console output ([OK], [ERROR], [SUCCESS], [INFO])
-  - `UserInput`: Interactive prompts and tilde path expansion
-
-### Concurrency Model
-- Uses Swift structured concurrency (async/await)
-- Two actors for thread-safe state management:
-  - `APIClient`: Protects API configuration and rate limiter state
-  - `JWTManager`: Protects JWT token cache and expiry dates
-- All commands are async and called from `main.swift` with top-level await
 
 ### Authentication Flow
 1. User runs `configure` command, providing credentials
@@ -120,15 +40,6 @@ The CLI uses a command-based architecture with clear separation of concerns:
 A single config holds one `default_app_id`, but `create-report` accepts a `--app-id <APP_ID>` flag that overrides it. The override threads from `Command.parseCreateReportCommand` → `CreateReportCommand.execute(appId:)` → `APIClient.createReportRequest(appId:)`. All other commands (`list-reports`, `download`, `status`, `delete-report`) operate by report request ID and are app-agnostic.
 
 To extend the override to other commands, follow the same wiring: parser → Command enum case → execute() signature → APIClient call.
-
-### Error Handling
-All major components have dedicated error enums conforming to `LocalizedError`:
-- `ConfigManagerError`: Configuration and file permission issues
-- `JWTManagerError`: JWT generation and validation failures
-- `APIClientError`: API communication and rate limit errors
-- `DownloadError`: Download and file operation failures
-
-Errors provide actionable messages guiding users to resolution.
 
 ### Download Architecture
 CSV downloads use parallel execution model:
@@ -253,74 +164,14 @@ The code enforces strict file permissions:
 - Private key: Warns if more permissive than 600
 - Always use `chmod 600` for sensitive files
 
-### Date Validation
-`CreateReportCommand` enforces:
-- Date format: YYYY-MM-DD
-- Maximum range: 365 days between start and end
-- Start date must be before end date
-
-### Adding New Commands
-To add a new command:
-
-1. Create `NewCommand.swift` in `Sources/AppStoreAnalyticsCLI/Commands/`
-2. Add case to `Command` enum in `Command.swift`
-3. Add argument parsing logic in `Command.parse()`
-4. Add switch case in `main.swift` to dispatch to new command
-5. Implement static `execute()` method with required parameters
-
-### Working with Reports
-Report types are strongly typed via `ReportType` enum. Each report has:
-- Raw API value (e.g., "APP_STORE_PRODUCT_PAGE_VIEWS")
-- Display name for user output
-- Category association (discovery, commerce, usage, performance, subscriptions)
-
-Access via:
-```swift
-let reportType = ReportType.appStoreProductPageViews
-print(reportType.rawValue)      // "APP_STORE_PRODUCT_PAGE_VIEWS"
-print(reportType.displayName)   // "App Store Product Page Views"
-print(reportType.category)      // .discovery
-```
-
 ## Common Development Workflows
-
-### Adding a New Report Type
-1. Add case to `ReportType` enum in `Models/ReportType.swift`
-2. Add to appropriate category in `category` computed property
-3. Add display name in `displayName` computed property
-
-### Modifying Rate Limits
-Edit `RateLimiter.swift`:
-- Change `hourlyLimit` or `minuteLimit` properties
-- Token buckets auto-refill at configured intervals
 
 ### Changing JWT Token Lifetime
 Edit `JWTManager.swift`:
 - Modify `tokenLifetime` constant (default: 18 minutes)
 - Keep below 20 minutes (Apple's token expiry)
 
-### Adding Progress Indicators
-Use `Logger` utility for consistent output:
-```swift
-Logger.info("Processing...")     // [INFO] message
-Logger.ok("Success")             // [OK] message
-Logger.success("Complete!")      // [SUCCESS] message
-Logger.error("Failed")           // [ERROR] message
-```
-
 ## Dependencies and External APIs
-
-### AppStoreConnect-Swift-SDK
-The project depends on AvdLee's AppStoreConnect-Swift-SDK for:
-- Type-safe API models
-- JWT authentication handling
-- `APIProvider` client
-- `APIConfiguration` setup
-
-Key types used from SDK:
-- `APIConfiguration` - JWT credentials setup
-- `APIProvider` - HTTP client for API calls
-- Various analytics models (when implementing real API calls)
 
 ### App Store Connect Analytics API
 Reference documentation:
@@ -330,17 +181,7 @@ Reference documentation:
 
 ## Configuration File Format
 
-`~/.appstore-analytics-config.json` (snake_case keys per `Configuration.swift` CodingKeys):
-```json
-{
-  "api_key_id": "YOUR_KEY_ID",
-  "default_app_id": "YOUR_APP_ID",
-  "default_output_dir": "./analytics-reports",
-  "issuer_id": "YOUR_ISSUER_ID",
-  "private_key_path": "~/path/to/AuthKey_XXXXXXXXXX.p8",
-  "vendor_number": "YOUR_VENDOR_NUMBER"
-}
-```
+`~/.appstore-analytics-config.json`, snake_case keys per `Configuration.swift` CodingKeys.
 
 `vendor_number` is optional and only the `sales` command needs it; configs
 written before sales support existed decode fine without it.
