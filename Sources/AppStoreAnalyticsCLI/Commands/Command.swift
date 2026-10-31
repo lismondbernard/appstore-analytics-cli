@@ -3,7 +3,7 @@ import Foundation
 enum Command {
     case configure(issuerId: String?, keyId: String?, privateKeyPath: String?, appId: String?, vendorNumbers: [String])
     case createReport(reportType: String, startDate: String, endDate: String, granularity: String, wait: Bool, download: Bool, accessType: String, appId: String?)
-    case listReports(category: String?, status: String?, format: String, appId: String?)
+    case listReports(format: String, appId: String?)
     case download(reportRequestId: String, outputDir: String?, merge: Bool, overwrite: Bool, reportType: String?, granularity: String?)
     case status(reportRequestId: String, watch: Bool, interval: Int, reportType: String?)
     case deleteReport(reportRequestId: String)
@@ -180,21 +180,29 @@ enum Command {
         )
     }
 
+    /// Message for a `list-reports` flag that used to exist and was removed in
+    /// SSS-111, or nil for any other flag. `--category` and `--status` were
+    /// parsed and validated but never applied, so a valid value silently did
+    /// nothing. A category belongs to the reports inside a request, and a
+    /// request's status is worked out per request by `status <ID>`.
+    static func removedListReportsOptionMessage(for token: String) -> String? {
+        switch token {
+        case "--category":
+            return "'--category' was removed from 'list-reports'. A report request has no category; the reports inside it do. Run 'status <ID>' to see them."
+        case "--status":
+            return "'--status' was removed from 'list-reports'. Status is worked out per request. Run 'status <ID>' to see it."
+        default:
+            return nil
+        }
+    }
+
     private static func parseListReportsCommand(args: [String]) -> Command? {
-        var category: String?
-        var status: String?
         var format: String = "table"
         var appId: String?
 
         var i = 0
         while i < args.count {
             switch args[i] {
-            case "--category":
-                i += 1
-                if i < args.count { category = args[i] }
-            case "--status":
-                i += 1
-                if i < args.count { status = args[i] }
             case "--format":
                 i += 1
                 if i < args.count { format = args[i] }
@@ -202,12 +210,16 @@ enum Command {
                 i += 1
                 if i < args.count { appId = args[i] }
             default:
+                if let removed = removedListReportsOptionMessage(for: args[i]) {
+                    Logger.error(removed)
+                    return nil
+                }
                 if rejectUnknownOption(args[i], command: "list-reports") { return nil }
             }
             i += 1
         }
 
-        return .listReports(category: category, status: status, format: format, appId: appId)
+        return .listReports(format: format, appId: appId)
     }
 
     private static func parseDownloadCommand(args: [String]) -> Command? {

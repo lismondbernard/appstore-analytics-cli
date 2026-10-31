@@ -2,38 +2,11 @@ import Foundation
 
 struct ListReportsCommand {
     static func execute(
-        category: String?,
-        status: String?,
         format: String,
         appId: String?
     ) async throws {
         // Load configuration
         let config = try ConfigManager.shared.loadConfiguration()
-
-        // Validate category if provided
-        if let category = category {
-            guard let _ = ReportCategory(rawValue: category.lowercased()) else {
-                Logger.error("Invalid category: \(category)")
-                Logger.info("Valid categories:")
-                for cat in ReportCategory.allCases {
-                    Logger.info("  - \(cat.rawValue)")
-                }
-                throw NSError(domain: "ListReportsCommand", code: 1, userInfo: [
-                    NSLocalizedDescriptionKey: "Invalid category"
-                ])
-            }
-        }
-
-        // Validate status if provided
-        if let status = status {
-            guard let _ = ReportStatus(rawValue: status.uppercased()) else {
-                Logger.error("Invalid status: \(status)")
-                Logger.info("Valid statuses: CREATED, PROCESSING, COMPLETED, FAILED")
-                throw NSError(domain: "ListReportsCommand", code: 2, userInfo: [
-                    NSLocalizedDescriptionKey: "Invalid status"
-                ])
-            }
-        }
 
         // Create API client
         let apiClient = try APIClient(configuration: config)
@@ -48,8 +21,6 @@ struct ListReportsCommand {
 
         // Fetch reports
         let reports = try await apiClient.listReports(
-            category: category,
-            status: status,
             appId: resolvedAppId
         )
 

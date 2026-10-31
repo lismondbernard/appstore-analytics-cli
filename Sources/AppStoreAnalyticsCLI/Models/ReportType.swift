@@ -1,6 +1,10 @@
 import Foundation
 
-enum ReportCategory: String, CaseIterable {
+/// Groups for the legacy `ReportType` vocabulary, used only by
+/// `list-report-types --category`. These are not Apple's categories. Apple's
+/// Analytics API uses FRAMEWORK_USAGE, PERFORMANCE, APP_USAGE, COMMERCE and
+/// APP_STORE_ENGAGEMENT (see the README table).
+enum LegacyReportGroup: String, CaseIterable {
     case discovery = "discovery"
     case engagement = "engagement"
     case commerce = "commerce"
@@ -46,7 +50,7 @@ enum ReportType: String, CaseIterable {
     case subscriberActivity = "SUBSCRIBER_ACTIVITY"
     case subscriptionRetention = "SUBSCRIPTION_RETENTION"
 
-    var category: ReportCategory {
+    var group: LegacyReportGroup {
         switch self {
         case .appStoreProductPageViews, .appImpressions,
              .appStoreReferrers, .appStoreTotalPageViews:

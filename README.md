@@ -157,24 +157,25 @@ appstore-analytics create-report \
 
 ### list-reports
 
-List available reports with optional filtering.
+List the report requests for an app.
 
 ```bash
 appstore-analytics list-reports \
-  [--category discovery|commerce|usage|performance] \
-  [--status created|processing|completed|failed] \
   [--format table|json] \
   [--app-id <APP_ID>]
 ```
 
 **Options:**
-- `--category`: Filter by report category
-- `--status`: Filter by report status
 - `--format`: Output format (default: table)
 - `--app-id`: List another app's report requests instead of the configured default
 
 Report requests belong to an app, so this command is app-scoped. The resolved app
 ID is echoed in the table output, marked `(override)` or `(from config)`.
+
+There are no `--category` or `--status` filters. They were removed (SSS-111)
+because they were accepted but never applied. A report request has no category;
+the reports inside it do. Its status is worked out per request, so run
+`status <ID>` to see both. Passing either flag now fails with a message saying so.
 
 ### download
 
@@ -220,14 +221,14 @@ appstore-analytics delete-report <REPORT_REQUEST_ID>
 
 ### list-report-types
 
-List all available report types, optionally filtered by category.
+List the legacy report types, optionally filtered by legacy group.
 
 ```bash
 appstore-analytics list-report-types [--category <CATEGORY>]
 ```
 
 **Options:**
-- `--category`: Filter by category (discovery, commerce, usage, performance, subscriptions)
+- `--category`: Filter by legacy group (discovery, commerce, usage, performance, subscriptions). These groups belong to the legacy report types only. They are not Apple's categories; see the table under "What the API actually returns".
 
 ## Report Types
 
@@ -254,10 +255,10 @@ Counts are from the 2026-09-05 audit:
 Most reports ship in a `Standard` and a `Detailed` cut. Pass these names to
 `download --report-type`, which matches case-insensitively on any substring.
 
-Note the mismatch with this CLI's own `--category` vocabulary (discovery,
-engagement, commerce, usage, performance, subscriptions): there is no `discovery`
-or `subscriptions` category in the API, and `FRAMEWORK_USAGE`, which is two thirds
-of everything available, has no representation here at all.
+Note the mismatch with the legacy groups that `list-report-types --category`
+uses (discovery, engagement, commerce, usage, performance, subscriptions): there
+is no `discovery` or `subscriptions` category in the API, and `FRAMEWORK_USAGE`,
+which is two thirds of everything available, has no representation here at all.
 
 **There is no organic search-terms report.** The live listing contains nothing
 search-related (the sole "search" hit is Visual Intelligence Image Search Usage, a

@@ -103,8 +103,6 @@ actor APIClient {
 
     /// List all analytics reports for the configured app
     func listReports(
-        category: String? = nil,
-        status: String? = nil,
         appId: String? = nil
     ) async throws -> [AnalyticsReportRequest] {
         try await rateLimiter.acquirePermit()
