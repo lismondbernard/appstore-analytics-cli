@@ -11,7 +11,7 @@ final class CommandParsingTests: XCTestCase {
     // MARK: - list-reports --app-id (the regression)
 
     func testListReportsCarriesAppIdOverride() {
-        guard case .listReports(_, _, _, let appId)? =
+        guard case .listReports(_, let appId)? =
                 Command.parse(arguments: ["list-reports", "--app-id", "598715944"]) else {
             return XCTFail("expected a listReports command")
         }
@@ -19,26 +19,49 @@ final class CommandParsingTests: XCTestCase {
     }
 
     func testListReportsWithoutAppIdDefersToConfig() {
-        guard case .listReports(_, _, _, let appId)? =
+        guard case .listReports(_, let appId)? =
                 Command.parse(arguments: ["list-reports"]) else {
             return XCTFail("expected a listReports command")
         }
         XCTAssertNil(appId, "no override means fall back to the configured default app")
     }
 
-    func testListReportsAppIdCoexistsWithOtherFlags() {
-        guard case .listReports(let category, let status, let format, let appId)? =
+    func testListReportsAppIdCoexistsWithFormat() {
+        guard case .listReports(let format, let appId)? =
                 Command.parse(arguments: [
-                    "list-reports", "--category", "discovery",
-                    "--status", "completed", "--format", "json",
-                    "--app-id", "598715944",
+                    "list-reports", "--format", "json", "--app-id", "598715944",
                 ]) else {
             return XCTFail("expected a listReports command")
         }
-        XCTAssertEqual(category, "discovery")
-        XCTAssertEqual(status, "completed")
         XCTAssertEqual(format, "json")
         XCTAssertEqual(appId, "598715944")
+    }
+
+    // MARK: - list-reports --status / --category were removed (SSS-111)
+
+    func testListReportsRejectsRemovedStatusFlag() {
+        XCTAssertNil(Command.parse(arguments: ["list-reports", "--status", "completed"]),
+                     "--status was a silent no-op; it must now be an error")
+    }
+
+    func testListReportsRejectsRemovedCategoryFlag() {
+        XCTAssertNil(Command.parse(arguments: ["list-reports", "--category", "commerce"]),
+                     "--category was a silent no-op; it must now be an error")
+    }
+
+    func testRemovedListReportsFlagsExplainThemselves() {
+        for flag in ["--status", "--category"] {
+            let message = Command.removedListReportsOptionMessage(for: flag)
+            XCTAssertNotNil(message, "\(flag) needs a message")
+            XCTAssertTrue(message?.contains("removed") == true)
+            XCTAssertTrue(message?.contains("status <ID>") == true)
+        }
+        XCTAssertNil(Command.removedListReportsOptionMessage(for: "--format"))
+    }
+
+    func testListReportsStillParsesPlainAndFormat() {
+        XCTAssertNotNil(Command.parse(arguments: ["list-reports"]))
+        XCTAssertNotNil(Command.parse(arguments: ["list-reports", "--format", "json"]))
     }
 
     func testCreateReportStillCarriesAppIdOverride() {

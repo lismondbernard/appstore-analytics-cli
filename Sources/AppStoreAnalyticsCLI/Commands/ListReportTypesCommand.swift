@@ -5,19 +5,19 @@ struct ListReportTypesCommand {
         let types: [ReportType]
 
         if let category = category,
-           let filter = ReportCategory(rawValue: category.lowercased()) {
-            types = ReportType.allCases.filter { $0.category == filter }
+           let filter = LegacyReportGroup(rawValue: category.lowercased()) {
+            types = ReportType.allCases.filter { $0.group == filter }
             Logger.info("Report types for category: \(filter.rawValue)")
         } else {
             types = ReportType.allCases
             Logger.info("All available report types:")
         }
 
-        var currentCategory: ReportCategory?
+        var currentGroup: LegacyReportGroup?
         for type in types {
-            if type.category != currentCategory {
-                currentCategory = type.category
-                print("\n  \(type.category.rawValue.uppercased()):")
+            if type.group != currentGroup {
+                currentGroup = type.group
+                print("\n  \(type.group.rawValue.uppercased()):")
             }
             print("    \(type.rawValue.padding(toLength: 36, withPad: " ", startingAt: 0)) \(type.displayName)")
         }

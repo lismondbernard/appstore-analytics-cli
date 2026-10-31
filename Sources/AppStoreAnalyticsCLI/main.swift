@@ -35,10 +35,8 @@ struct AppStoreAnalyticsCLI {
                     appId: appId
                 )
 
-            case .listReports(let category, let status, let format, let appId):
+            case .listReports(let format, let appId):
                 try await ListReportsCommand.execute(
-                    category: category,
-                    status: status,
                     format: format,
                     appId: appId
                 )
@@ -138,14 +136,13 @@ struct AppStoreAnalyticsCLI {
 
         LIST REPORTS:
             appstore-analytics list-reports \\
-                [--category discovery|commerce|usage|performance] \\
-                [--status created|processing|completed|failed] \\
                 [--format table|json] \\
                 [--app-id <APP_ID>]
 
             Report requests belong to an app, so this lists the requests for the
             configured default app unless --app-id names another. The chosen app
-            is echoed in the output.
+            is echoed in the output. There are no --category or --status filters:
+            run 'status <ID>' to see a request's reports and their status.
 
         DOWNLOAD:
             appstore-analytics download <REPORT_REQUEST_ID> \\
@@ -210,7 +207,9 @@ struct AppStoreAnalyticsCLI {
 
         LIST REPORT TYPES:
             appstore-analytics list-report-types [--category <CATEGORY>]
-            Categories: discovery, commerce, usage, performance, subscriptions
+            Legacy groups: discovery, commerce, usage, performance, subscriptions
+            These group the legacy report types below. They are not Apple's
+            categories (see REPORT TYPES).
 
         REPORT TYPES:
             Legacy request vocabulary. Audited 2026-09-05 against a live request:

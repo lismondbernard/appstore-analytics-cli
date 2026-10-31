@@ -69,6 +69,16 @@ which meant a real report name skipped filtering entirely.
 
 Use `status <ID>` to discover the names under a request before filtering.
 
+The groups on the legacy side are `LegacyReportGroup` (discovery, commerce, …),
+used only by `list-report-types --category`. They are not Apple's categories
+(`FRAMEWORK_USAGE`, `PERFORMANCE`, `APP_USAGE`, `COMMERCE`,
+`APP_STORE_ENGAGEMENT`), and the two lists don't match.
+
+`list-reports` has no `--category` or `--status`. They used to be parsed and
+then ignored (SSS-111). A request has no category, and its status is worked out
+per request by `getReportStatus`, so filtering would cost one call per request.
+Passing either flag is an error that points to `status <ID>`.
+
 ### Never sum the downloaded CSVs
 
 `download` fetches **every** instance under a report request, and those instances
